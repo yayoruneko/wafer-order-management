@@ -70,12 +70,12 @@ push 完後，GitHub 頁面上方會出現黃色提示列，點 Compare & pull r
 
 ### 步驟二：填寫 PR 說明
 
-標題格式：[W週次] 類型: 簡短說明
+標題格式：[W週次 姓名] 類型: 簡短說明
 
 範例：
-[W1] feat: Order entity and CRUD API
-[W2] feat: scheduler core logic
-[W1] chore: CI/CD workflow setup
+[W1 王暄雅] feat: Order entity and CRUD API
+[W2 陳信嘉] feat: scheduler core logic
+[W1 何孟修] chore: CI/CD workflow setup
 
 內文必須包含以下三個區塊：
 
