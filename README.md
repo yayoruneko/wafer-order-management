@@ -37,7 +37,7 @@ docker-compose down
 | 後端 API | http://localhost:8080/api |
 | MySQL | localhost:3306 |
 
-## 測試帳號
+## 測試帳號密碼
 | 帳號 | 密碼 | 權限 |
 |---|---|---|
 | admin | password123 | ADMIN（可新增修改取消訂單） |
