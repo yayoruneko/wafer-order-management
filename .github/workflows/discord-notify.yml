@@ -8,9 +8,9 @@ on:
       - main
 
 jobs:
-  notify-pr-to-develop:
-    name: Notify PR to develop
-    if: github.event.pull_request.base.ref == 'develop' && github.event.action != 'closed'
+  notify-pr-review:
+    name: Notify PR review request
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
 
     steps:
@@ -19,36 +19,36 @@ jobs:
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"📝 **有 PR 等待 review → develop**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nAuthor: ${{ github.event.pull_request.user.login }}\nSource branch: ${{ github.event.pull_request.head.ref }}\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"📝 **有 PR 等待 review**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nAuthor: ${{ github.event.pull_request.user.login }}\nSource branch: ${{ github.event.pull_request.head.ref }}\nTarget branch: ${{ github.event.pull_request.base.ref }}\nAction: ${{ github.event.action }}\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_FEATURE_WEBHOOK }}"
 
-  notify-develop-merged:
-    name: Notify develop merge
+  notify-develop-updated:
+    name: Notify develop updated
     if: github.event.pull_request.base.ref == 'develop' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send develop merge notification
+      - name: Send develop update notification
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"✅ **develop 已 merge**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → develop\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"✅ **develop 已有新的 merge 更新**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → develop\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_DEVELOP_WEBHOOK }}"
 
-  notify-main-merged:
-    name: Notify main merge
+  notify-main-updated:
+    name: Notify main updated
     if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send main merge notification
+      - name: Send main update notification
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"🚀 **main 已 merge**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → main\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"🚀 **main 已有新的 merge 更新**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → main\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_MAIN_WEBHOOK }}"
