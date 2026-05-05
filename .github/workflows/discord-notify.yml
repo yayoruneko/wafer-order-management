@@ -1,0 +1,54 @@
+name: Discord Notifications
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    branches:
+      - develop
+      - main
+
+jobs:
+  notify-pr-review:
+    name: Notify PR review request
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send PR review notification
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"content\": \"📝 **有 PR 等待 review**\n\n- **Repository：** ${{ github.repository }}\n- **Title：** ${{ github.event.pull_request.title }}\n- **Author：** ${{ github.event.pull_request.user.login }}\n- **Source branch：** ${{ github.event.pull_request.head.ref }}\n- **Target branch：** ${{ github.event.pull_request.base.ref }}\n- **Action：** ${{ github.event.action }}\n- **Link：** ${{ github.event.pull_request.html_url }}\n\n━━━━━━━━━━━━━━━━━━━━\"
+               }" \
+               "${{ secrets.DISCORD_FEATURE_WEBHOOK }}"
+
+  notify-develop-updated:
+    name: Notify develop updated
+    if: github.event.pull_request.base.ref == 'develop' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send develop update notification
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"content\": \"✅ **develop 已有新的 merge 更新**\n\n- **Repository：** ${{ github.repository }}\n- **Title：** ${{ github.event.pull_request.title }}\n- **Merged by：** ${{ github.actor }}\n- **From：** ${{ github.event.pull_request.head.ref }} → develop\n- **Link：** ${{ github.event.pull_request.html_url }}\n\n━━━━━━━━━━━━━━━━━━━━\"
+               }" \
+               "${{ secrets.DISCORD_DEVELOP_WEBHOOK }}"
+
+  notify-main-updated:
+    name: Notify main updated
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send main update notification
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"content\": \"🚀 **main 已有新的 merge 更新**\n\n- **Repository：** ${{ github.repository }}\n- **Title：** ${{ github.event.pull_request.title }}\n- **Merged by：** ${{ github.actor }}\n- **From：** ${{ github.event.pull_request.head.ref }} → main\n- **Link：** ${{ github.event.pull_request.html_url }}\n\n━━━━━━━━━━━━━━━━━━━━\"
+               }" \
+               "${{ secrets.DISCORD_MAIN_WEBHOOK }}"
