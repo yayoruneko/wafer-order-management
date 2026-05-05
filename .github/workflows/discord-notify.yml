@@ -1,10 +1,6 @@
 name: Discord Notifications
 
 on:
-  push:
-    branches:
-      - 'feature/**'
-
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review, closed]
     branches:
@@ -12,24 +8,9 @@ on:
       - main
 
 jobs:
-  notify-feature-push:
-    name: Notify feature branch push
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Send feature branch push notification
-        run: |
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "{
-                 \"content\": \"📌 **Feature branch 有新推送**\nRepository: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nPusher: ${{ github.actor }}\nCommit: ${{ github.event.head_commit.message }}\nLink: ${{ github.event.head_commit.url }}\"
-               }" \
-               "${{ secrets.DISCORD_FEATURE_WEBHOOK }}"
-
   notify-pr-to-develop:
     name: Notify PR to develop
-    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop' && github.event.action != 'closed'
+    if: github.event.pull_request.base.ref == 'develop' && github.event.action != 'closed'
     runs-on: ubuntu-latest
 
     steps:
@@ -38,13 +19,13 @@ jobs:
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"📝 **有 PR 等待 review → develop**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nAuthor: ${{ github.event.pull_request.user.login }}\nSource branch: ${{ github.event.pull_request.head.ref }}\nTarget branch: develop\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"📝 **有 PR 等待 review → develop**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nAuthor: ${{ github.event.pull_request.user.login }}\nSource branch: ${{ github.event.pull_request.head.ref }}\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_FEATURE_WEBHOOK }}"
 
   notify-develop-merged:
     name: Notify develop merge
-    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'develop' && github.event.pull_request.merged == true
+    if: github.event.pull_request.base.ref == 'develop' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -53,13 +34,13 @@ jobs:
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"✅ **develop 已有新的 merge 更新**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → develop\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"✅ **develop 已 merge**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → develop\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_DEVELOP_WEBHOOK }}"
 
   notify-main-merged:
     name: Notify main merge
-    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -68,6 +49,6 @@ jobs:
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{
-                 \"content\": \"🚀 **main 已有新的 merge 更新**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → main\nLink: ${{ github.event.pull_request.html_url }}\"
+                 \"content\": \"🚀 **main 已 merge**\nRepository: ${{ github.repository }}\nTitle: ${{ github.event.pull_request.title }}\nMerged by: ${{ github.actor }}\nFrom: ${{ github.event.pull_request.head.ref }} → main\nLink: ${{ github.event.pull_request.html_url }}\"
                }" \
                "${{ secrets.DISCORD_MAIN_WEBHOOK }}"
