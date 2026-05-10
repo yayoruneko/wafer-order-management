@@ -113,7 +113,7 @@ jobs:
       - name: Start backend (H2 test profile)
         working-directory: backend
         run: |
-          nohup mvn -B -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
+          nohup mvn -B -e -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
           echo $! > backend.pid
 
       - name: Wait for backend
