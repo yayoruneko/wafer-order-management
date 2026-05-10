@@ -19,12 +19,6 @@ public class Customer {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "contact_person")
-    private String contactPerson;
-
-    @Column(name = "contact_email")
-    private String contactEmail;
-
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

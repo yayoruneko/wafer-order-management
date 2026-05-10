@@ -1,9 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { api } from '../api/orderApi'
 import {
   DAILY_CAPACITY,
   FACTORIES,
-  productionCalendar,
-  utilizationDelta,
 } from '../data/productionCalendar'
 
 export const CAPACITY_THRESHOLDS = {
@@ -69,11 +68,16 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
   const [factoryId, setFactoryId] = useState(FACTORIES[0].id)
   const [view, setView] = useState('month')
   const [selectedISO, setSelectedISO] = useState(null)
+  const [calendarData, setCalendarData] = useState({})
 
-  const factoryData = useMemo(
-    () => productionCalendar[factoryId] ?? {},
-    [factoryId],
-  )
+  useEffect(() => {
+    const yearMonth = `${monthAnchor.getFullYear()}-${String(monthAnchor.getMonth() + 1).padStart(2, '0')}`
+    api.get('/production/slots', { params: { factoryId, yearMonth } })
+      .then(({ data }) => setCalendarData(data))
+      .catch(() => setCalendarData({}))
+  }, [factoryId, monthAnchor])
+
+  const factoryData = calendarData
 
   const cells = useMemo(() => buildMonthGrid(monthAnchor), [monthAnchor])
 
@@ -107,7 +111,7 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
     if (monthDays.length === 0) {
       return {
         avgUtilization: 0,
-        deltaVsPrev: utilizationDelta[factoryId]?.vsPrevMonth ?? 0,
+        deltaVsPrev: 0,
         fullDays: [],
         nearFullDays: [],
         delayedOrders: [],
@@ -123,7 +127,7 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
     )
     return {
       avgUtilization: totalUtil / monthDays.length,
-      deltaVsPrev: utilizationDelta[factoryId]?.vsPrevMonth ?? 0,
+      deltaVsPrev: 0,
       fullDays,
       nearFullDays,
       delayedOrders,

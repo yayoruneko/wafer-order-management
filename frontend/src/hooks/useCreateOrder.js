@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  initialCustomers,
   QTY_MIN,
   QTY_MAX,
   LEAD_TIME_WEEKS_MIN,
@@ -8,6 +7,10 @@ import {
 } from '../data/customers'
 import { PRESET_COLORS } from '../styles/createOrderStyles'
 import useI18n from '../i18n/useI18n'
+import { getCustomers, createOrder } from '../api/orderApi'
+
+const HARDCODED_FACTORY_ID = 'factory-001'
+const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
 
 const MS_PER_DAY = 86_400_000
 
@@ -57,12 +60,27 @@ function toISO(d) {
 
 export default function useCreateOrder() {
   const { t } = useI18n()
-  const [customers, setCustomers] = useState(initialCustomers)
+  const [customers, setCustomers] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [qty, setQty] = useState('')
   const [dueDate, setDueDate] = useState(defaultDueDate)
   const [submitting, setSubmitting] = useState(false)
-  const seedRef = useRef(initialCustomers.length)
+  const seedRef = useRef(0)
+
+  useEffect(() => {
+    getCustomers()
+      .then(({ data }) => {
+        const mapped = data.map((c, i) => ({
+          id: c.id,
+          code: c.customerCode,
+          name: c.name,
+          color: PRESET_COLORS[i % PRESET_COLORS.length],
+        }))
+        setCustomers(mapped)
+        seedRef.current = mapped.length
+      })
+      .catch(() => {})
+  }, [])
 
   const qtyError = useMemo(() => {
     if (qty === '' || qty == null) return null
@@ -126,12 +144,12 @@ export default function useCreateOrder() {
   }, [])
 
   const buildPayload = useCallback(
-    (effectiveDate) => ({
-      customerCode: selectedCustomer.code,
-      customerName: selectedCustomer.name,
-      qty: Number(String(qty).replace(/,/g, '')),
-      requestedDueDate: toISO(dueDate),
-      expectedDate: toISO(effectiveDate ?? dueDate),
+    () => ({
+      customerId: selectedCustomer?.id ?? null,
+      factoryId: HARDCODED_FACTORY_ID,
+      waferTypeId: HARDCODED_WAFER_TYPE_ID,
+      quantity: Number(String(qty).replace(/,/g, '')),
+      customerDueDate: toISO(dueDate),
     }),
     [selectedCustomer, qty, dueDate],
   )
@@ -145,25 +163,29 @@ export default function useCreateOrder() {
   const submit = useCallback(async () => {
     if (!canSubmit) return null
     setSubmitting(true)
-    await wait(700)
-    const result = mockCapacityCheck({
-      qty: Number(String(qty).replace(/,/g, '')),
-      dueDate,
-      t,
-    })
-    setSubmitting(false)
-    if (result.ok) {
-      return { status: 'ok', payload: buildPayload(dueDate) }
+    try {
+      await createOrder(buildPayload())
+      return { status: 'ok' }
+    } catch (err) {
+      const message = err?.response?.data?.message ?? err?.message ?? '建立訂單失敗'
+      throw new Error(message)
+    } finally {
+      setSubmitting(false)
     }
-    return { status: 'delay', ...result }
-  }, [canSubmit, qty, dueDate, buildPayload, t])
+  }, [canSubmit, buildPayload])
 
   const submitWithAcceptedDate = useCallback(
-    async (acceptedDate) => {
-      await wait(700)
-      return buildPayload(acceptedDate)
+    async () => {
+      if (!canSubmit) return null
+      setSubmitting(true)
+      try {
+        await createOrder(buildPayload())
+        return { status: 'ok' }
+      } finally {
+        setSubmitting(false)
+      }
     },
-    [buildPayload],
+    [canSubmit, buildPayload],
   )
 
   return {

@@ -2,20 +2,18 @@ CREATE TABLE IF NOT EXISTS users (
   id            VARCHAR(36)  NOT NULL,
   username      VARCHAR(100) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role          ENUM('ADMIN','VIEWER') NOT NULL DEFAULT 'VIEWER',
+  role          ENUM('SUPER_ADMIN','ADMIN','VIEWER') NOT NULL DEFAULT 'VIEWER',
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_username (username)
 );
 
 CREATE TABLE IF NOT EXISTS customers (
-  id             VARCHAR(36)  NOT NULL,
-  customer_code  VARCHAR(20)  NOT NULL,
-  name           VARCHAR(100) NOT NULL,
-  contact_person VARCHAR(100),
-  contact_email  VARCHAR(150),
-  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id            VARCHAR(36)  NOT NULL,
+  customer_code VARCHAR(20)  NOT NULL,
+  name          VARCHAR(100) NOT NULL,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_customer_code (customer_code)
 );
