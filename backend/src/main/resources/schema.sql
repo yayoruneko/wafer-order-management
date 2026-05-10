@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS orders (
                         ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   CONSTRAINT chk_quantity CHECK (quantity BETWEEN 25 AND 2500),
+  KEY idx_orders_status (status),
+  KEY idx_orders_customer (customer_id),
+  KEY idx_orders_factory_due (factory_id, customer_due_date),
+  KEY idx_orders_created_at (created_at),
   FOREIGN KEY (factory_id)    REFERENCES factories(id),
   FOREIGN KEY (wafer_type_id) REFERENCES wafer_types(id),
   FOREIGN KEY (customer_id)   REFERENCES customers(id),
@@ -84,6 +88,8 @@ CREATE TABLE IF NOT EXISTS order_history (
   snapshot_delay_days        INT,
   snapshot_schedule_warning  VARCHAR(255),
   PRIMARY KEY (id),
+  KEY idx_history_order_id (order_id),
+  KEY idx_history_changed_at (changed_at),
   FOREIGN KEY (order_id)   REFERENCES orders(id),
   FOREIGN KEY (changed_by) REFERENCES users(id)
 );
@@ -96,6 +102,7 @@ CREATE TABLE IF NOT EXISTS production_slots (
   quantity   INT         NOT NULL,
   created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_slots_factory_date (factory_id, slot_date),
   FOREIGN KEY (order_id)   REFERENCES orders(id),
   FOREIGN KEY (factory_id) REFERENCES factories(id)
 );
@@ -119,15 +126,7 @@ CREATE TABLE IF NOT EXISTS scheduling_queue (
   created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   processed_at TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_queue_status_pri (status, priority, created_at),
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
-
-CREATE INDEX idx_orders_status         ON orders(status);
-CREATE INDEX idx_orders_customer       ON orders(customer_id);
-CREATE INDEX idx_orders_factory_due    ON orders(factory_id, customer_due_date);
-CREATE INDEX idx_orders_created_at     ON orders(created_at);
-CREATE INDEX idx_history_order_id      ON order_history(order_id);
-CREATE INDEX idx_history_changed_at    ON order_history(changed_at);
-CREATE INDEX idx_slots_factory_date    ON production_slots(factory_id, slot_date);
-CREATE INDEX idx_queue_status_pri      ON scheduling_queue(status, priority, created_at);
 
