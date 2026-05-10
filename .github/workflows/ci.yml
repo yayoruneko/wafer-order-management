@@ -106,19 +106,23 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build backend (warm Maven cache)
+        working-directory: backend
         run: |
-          mvn -B -f backend/pom.xml -DskipTests package
+          mvn -B -DskipTests package
 
       - name: Start backend (H2 test profile)
+        working-directory: backend
         run: |
-          nohup mvn -B -f backend/pom.xml -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
+          nohup mvn -B -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
           echo $! > backend.pid
 
       - name: Wait for backend
+        working-directory: backend
         run: |
           for i in {1..150}; do
-            if curl -sf http://localhost:8080/api/orders > /dev/null; then
-              echo "Backend is up"
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/orders || true)
+            if [ "$status_code" != "000" ]; then
+              echo "Backend is responding (HTTP $status_code)"
               exit 0
             fi
 
