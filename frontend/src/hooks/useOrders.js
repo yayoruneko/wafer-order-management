@@ -1,5 +1,23 @@
-import { useCallback, useMemo, useState } from 'react'
-import { sampleOrders } from '../data/sampleOrders'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getOrders, cancelOrder } from '../api/orderApi'
+
+const CUSTOMER_COLORS = ['#76B900', '#ED1C24', '#0071C5', '#E60012', '#3253DC', '#1428A0', '#FF6B35', '#00B4D8']
+
+function mapOrder(o, index) {
+  return {
+    id: o.id,
+    customerCode: o.customerCode ?? '',
+    customerName: o.customerName ?? '',
+    customerColor: CUSTOMER_COLORS[index % CUSTOMER_COLORS.length],
+    qty: o.quantity,
+    status: o.status,
+    dueDate: o.customerDueDate ?? null,
+    expected: o.expectedDueDate ?? null,
+    delayedDays: o.delayDays ?? 0,
+    scheduleWarning: o.scheduleWarning ?? null,
+    owner: 'me',
+  }
+}
 
 export const PAGE_SIZE = 6
 
@@ -23,7 +41,8 @@ function compare(a, b, field) {
 }
 
 export default function useOrders() {
-  const [orders, setOrders] = useState(sampleOrders)
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     id: '',
     customer: '',
@@ -36,6 +55,20 @@ export default function useOrders() {
   const [sortDir, setSortDir] = useState('asc')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [density, setDensity] = useState('comfortable')
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await getOrders()
+      setOrders(data.map(mapOrder))
+    } catch {
+      setOrders([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const stats = useMemo(() => {
     let inProduction = 0
@@ -171,14 +204,18 @@ export default function useOrders() {
     )
   }, [])
 
-  const cancelSelected = useCallback(() => {
+  const cancelSelected = useCallback(async () => {
+    const ids = [...selectedIds]
     setOrders((prev) =>
-      prev.map((o) =>
-        selectedIds.has(o.id) ? { ...o, status: 'CANCELLED' } : o,
-      ),
+      prev.map((o) => ids.includes(o.id) ? { ...o, status: 'CANCELLED' } : o),
     )
     setSelectedIds(new Set())
-  }, [selectedIds])
+    try {
+      await Promise.all(ids.map((id) => cancelOrder(id)))
+    } finally {
+      fetchOrders()
+    }
+  }, [selectedIds, fetchOrders])
 
   const exportSelected = useCallback(() => {
     const rows = orders.filter((o) => selectedIds.has(o.id))
@@ -227,6 +264,7 @@ export default function useOrders() {
 
   return {
     orders: pageItems,
+    loading,
     total: orders.length,
     filteredTotal: filtered.length,
     page: safePage,

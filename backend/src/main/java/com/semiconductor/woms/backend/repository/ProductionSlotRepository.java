@@ -16,6 +16,9 @@ public interface ProductionSlotRepository extends JpaRepository<ProductionSlot, 
     // 查詢某工廠某天的所有 slot
     List<ProductionSlot> findByFactoryIdAndSlotDate(String factoryId, LocalDate slotDate);
 
+    // 查詢某工廠某日期區間的所有 slot
+    List<ProductionSlot> findByFactoryIdAndSlotDateBetween(String factoryId, LocalDate from, LocalDate to);
+
     // 刪除某筆訂單的所有 slot（取消或修改訂單時用）
     void deleteByOrderId(String orderId);
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { sampleOrders } from '../data/sampleOrders'
+import { getOrder } from '../api/orderApi'
 import {
   QTY_MIN,
   QTY_MAX,
@@ -34,14 +34,20 @@ function daysFromToday(date) {
   return Math.round((date - today) / MS_PER_DAY)
 }
 
-function loadMockOrder(orderId) {
-  const base =
-    sampleOrders.find((o) => o.id === orderId) ?? sampleOrders[0]
+function mapOrder(o) {
   return {
-    ...base,
-    createdAt: '2024-10-12',
-    lastEditAt: new Date(Date.now() - 2 * 60 * 1000),
-    lastEditBy: 'm.tanaka@fab2',
+    id: o.id,
+    customerCode: o.customerCode ?? '',
+    customerName: o.customerName ?? '',
+    qty: o.quantity,
+    status: o.status,
+    dueDate: o.customerDueDate ?? null,
+    expected: o.expectedDueDate ?? null,
+    delayedDays: o.delayDays ?? 0,
+    scheduleWarning: o.scheduleWarning ?? null,
+    createdAt: o.createdAt ?? null,
+    lastEditAt: o.updatedAt ? new Date(o.updatedAt) : null,
+    lastEditBy: CURRENT_USER,
   }
 }
 
@@ -86,10 +92,16 @@ export default function useEditOrder(orderId) {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      await wait(200)
-      if (cancelled) return
-      applyOrder(loadMockOrder(orderId))
-      setLoading(false)
+      setLoading(true)
+      try {
+        const { data } = await getOrder(orderId)
+        if (cancelled) return
+        applyOrder(mapOrder(data))
+      } catch {
+        // leave loading spinner visible; user can navigate back
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => {
       cancelled = true
@@ -157,10 +169,12 @@ export default function useEditOrder(orderId) {
 
   const reload = useCallback(async () => {
     setReloading(true)
-    await wait(400)
-    const fresh = loadMockOrder(orderId)
-    applyOrder({ ...fresh, lastEditBy: CURRENT_USER })
-    setReloading(false)
+    try {
+      const { data } = await getOrder(orderId)
+      applyOrder(mapOrder(data))
+    } finally {
+      setReloading(false)
+    }
   }, [orderId, applyOrder])
 
   const submit = useCallback(async () => {
