@@ -112,6 +112,14 @@ jobs:
 
       - name: Start backend (H2 test profile)
         working-directory: backend
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:woms_test;DB_CLOSE_DELAY=-1;MODE=MySQL
+          SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
+          SPRING_DATASOURCE_USERNAME: sa
+          SPRING_DATASOURCE_PASSWORD: ''
+          SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+          SPRING_SQL_INIT_MODE: never
         run: |
           nohup mvn -B -e -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
           echo $! > backend.pid
