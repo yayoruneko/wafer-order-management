@@ -14,9 +14,9 @@ describe('orderApi ↔ backend integration', () => {
     due.setDate(due.getDate() + 7)
 
     const payload = {
-      factoryId: 'FAB-IT',
-      waferTypeId: 'WT-IT',
-      customerId: `CUST-IT-${Date.now()}`,
+      factoryId: 'factory-001',
+      waferTypeId: 'wafer-type-001',
+      customerId: 'customer-001',
       quantity: 125,
       customerDueDate: toIsoDate(due),
     }
@@ -37,9 +37,9 @@ describe('orderApi ↔ backend integration', () => {
     due.setDate(due.getDate() + 7)
 
     const payload = {
-      factoryId: 'FAB-IT',
-      waferTypeId: 'WT-IT',
-      customerId: `CUST-IT-${Date.now()}`,
+      factoryId: 'factory-001',
+      waferTypeId: 'wafer-type-001',
+      customerId: 'customer-002',
       quantity: 50,
       customerDueDate: toIsoDate(due),
     }
