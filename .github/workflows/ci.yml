@@ -119,7 +119,8 @@ jobs:
           SPRING_DATASOURCE_USERNAME: sa
           SPRING_DATASOURCE_PASSWORD: ''
           SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
-          SPRING_SQL_INIT_MODE: never
+          SPRING_SQL_INIT_MODE: always
+          SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: 'true'
         run: |
           nohup mvn -B -e -DskipTests -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.profiles=test spring-boot:run > backend.log 2>&1 &
           echo $! > backend.pid
