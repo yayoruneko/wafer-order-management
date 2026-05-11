@@ -15,7 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -78,5 +80,72 @@ class OrderControllerIntegrationTest {
             }
         }
         assertTrue(containsCreated, "Expected list to contain created order id: " + createdId);
+    }
+
+    // --- Case 1: 數量低於 25，createOrder 應該回傳 400 ---
+    @Test
+    void createOrder_quantityBelowMin_returns400() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson("CUST-DUMMY", 24, LocalDate.now().plusDays(7))))
+                .andExpect(status().isBadRequest());
+    }
+
+    // --- Case 2: 數量高於 2500，createOrder 應該回傳 400 ---
+    @Test
+    void createOrder_quantityAboveMax_returns400() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson("CUST-DUMMY", 2501, LocalDate.now().plusDays(7))))
+                .andExpect(status().isBadRequest());
+    }
+
+    // --- Case 3: 交期是昨天，createOrder 應該回傳 400 並顯示「交期已過」 ---
+    @Test
+    void createOrder_pastDueDate_returns400WithMessage() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson("CUST-DUMMY", 100, LocalDate.now().minusDays(1))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("交期")));
+    }
+
+    // --- Case 4: customerId 不存在，createOrder 應該回傳 400 並顯示「找不到此客戶」 ---
+    @Test
+    void createOrder_unknownCustomer_returns400WithMessage() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson("NONEXISTENT-" + UUID.randomUUID(), 100, LocalDate.now().plusDays(7))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("找不到此客戶")));
+    }
+
+    // --- Case 5: 正常新增訂單，回傳 201，status = PENDING，remainingQuantity = quantity ---
+    @Test
+    void createOrder_validRequest_returns201WithPendingAndMatchingQuantity() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("CTRL-INT-" + UUID.randomUUID());
+        customer.setName("Controller Integration Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson(saved.getId(), 300, LocalDate.now().plusDays(14))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", notNullValue()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.quantity").value(300))
+                .andExpect(jsonPath("$.remainingQuantity").value(300));
+    }
+
+    private String buildOrderJson(String customerId, int quantity, LocalDate dueDate) throws Exception {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("customerId", customerId);
+        node.put("factoryId", "FAB-CTRL");
+        node.put("waferTypeId", "WT-CTRL");
+        node.put("quantity", quantity);
+        node.put("customerDueDate", dueDate.toString());
+        return objectMapper.writeValueAsString(node);
     }
 }

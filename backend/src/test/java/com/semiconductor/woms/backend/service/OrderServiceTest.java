@@ -53,6 +53,36 @@ class OrderServiceTest {
     }
 
     @Test
+    void createOrder_rejectsQuantityAboveMax() {
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
+        req.setQuantity(2501);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> orderService.createOrder(req));
+        assertTrue(ex.getMessage().contains("2500"));
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void createOrder_rejectsUnknownCustomer() {
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("NONEXISTENT");
+        req.setQuantity(100);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        when(customerRepository.findById("NONEXISTENT")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> orderService.createOrder(req));
+        assertTrue(ex.getMessage().contains("找不到此客戶"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void createOrder_rejectsPastDueDate() {
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-001");
