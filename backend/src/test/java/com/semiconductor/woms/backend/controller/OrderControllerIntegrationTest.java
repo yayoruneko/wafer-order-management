@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.semiconductor.woms.backend.dto.OrderRequest;
+import com.semiconductor.woms.backend.model.Customer;
+import com.semiconductor.woms.backend.repository.CustomerRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,12 +33,21 @@ class OrderControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CustomerRepository customerRepository;
+
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("CUST-INT");
+        customer.setName("Integration Customer");
+        customer.setIsActive(true);
+        Customer savedCustomer = customerRepository.save(customer);
+
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-INT");
         req.setWaferTypeId("WT-INT");
-        req.setCustomerId("CUST-INT");
+        req.setCustomerId(savedCustomer.getId());
         req.setQuantity(250);
         req.setCustomerDueDate(LocalDate.now().plusDays(14));
 

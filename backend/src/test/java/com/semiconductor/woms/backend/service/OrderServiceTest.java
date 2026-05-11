@@ -2,8 +2,11 @@ package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.SchedulingAction;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
+import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +28,12 @@ class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
+
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @Mock
+    private SchedulingQueueService schedulingQueueService;
 
     @InjectMocks
     private OrderService orderService;
@@ -66,6 +75,12 @@ class OrderServiceTest {
         req.setQuantity(100);
         req.setCustomerDueDate(LocalDate.now().plusDays(10));
 
+        Customer customer = new Customer();
+        customer.setId("CUST-001");
+        customer.setCustomerCode("CODE-001");
+        customer.setName("Test Customer");
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
+
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
             // Simulate what JPA would set via @PrePersist.
@@ -94,6 +109,7 @@ class OrderServiceTest {
         assertEquals("CUST-001", saved.getCustomerId());
         assertEquals(100, saved.getQuantity());
         assertEquals("user-admin-001", saved.getCreatedBy());
+        verify(schedulingQueueService).enqueue("generated-id", SchedulingAction.SCHEDULE_ORDER);
     }
 
     @Test
@@ -107,7 +123,7 @@ class OrderServiceTest {
         order.setQuantity(100);
         order.setRemainingQuantity(100);
         order.setCustomerDueDate(LocalDate.now().plusDays(10));
-        order.setStatus(OrderStatus.IN_PROGRESS);
+        order.setStatus(OrderStatus.IN_PRODUCTION);
 
         when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
@@ -115,7 +131,7 @@ class OrderServiceTest {
         orderService.cancelOrder("o-1");
 
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        assertEquals(OrderStatus.IN_PROGRESS, order.getCancelledFromStatus());
+        assertEquals(OrderStatus.IN_PRODUCTION, order.getCancelledFromStatus());
         verify(orderRepository).save(order);
     }
 
