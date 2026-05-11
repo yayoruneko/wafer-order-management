@@ -20,6 +20,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -137,6 +138,86 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.quantity").value(300))
                 .andExpect(jsonPath("$.remainingQuantity").value(300));
+    }
+
+    // ── New test cases ────────────────────────────────────────────────────────
+
+    @Test
+    void getOrderById_returns200WithOrderBody() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("GET-BY-ID-" + UUID.randomUUID());
+        customer.setName("GetById Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        MvcResult createRes = mockMvc.perform(
+                        post("/api/orders")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(buildOrderJson(saved.getId(), 100, LocalDate.now().plusDays(5))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String orderId = ((ObjectNode) objectMapper.readTree(createRes.getResponse().getContentAsString()))
+                .get("id").asText();
+
+        mockMvc.perform(get("/api/orders/{id}", orderId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(orderId))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.quantity").value(100));
+    }
+
+    @Test
+    void cancelOrder_returns204() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("CANCEL-" + UUID.randomUUID());
+        customer.setName("Cancel Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        MvcResult createRes = mockMvc.perform(
+                        post("/api/orders")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(buildOrderJson(saved.getId(), 200, LocalDate.now().plusDays(7))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String orderId = ((ObjectNode) objectMapper.readTree(createRes.getResponse().getContentAsString()))
+                .get("id").asText();
+
+        mockMvc.perform(delete("/api/orders/{id}", orderId))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void createOrder_quantityAtMinBoundary_returns201() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("MIN-QTY-" + UUID.randomUUID());
+        customer.setName("Min Qty Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson(saved.getId(), 25, LocalDate.now().plusDays(7))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.quantity").value(25))
+                .andExpect(jsonPath("$.remainingQuantity").value(25));
+    }
+
+    @Test
+    void createOrder_quantityAtMaxBoundary_returns201() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("MAX-QTY-" + UUID.randomUUID());
+        customer.setName("Max Qty Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson(saved.getId(), 2500, LocalDate.now().plusDays(7))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.quantity").value(2500));
     }
 
     private String buildOrderJson(String customerId, int quantity, LocalDate dueDate) throws Exception {
