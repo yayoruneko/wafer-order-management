@@ -1,6 +1,9 @@
 # Wafer 訂單管理排程系統
 
 ## 本地啟動方式 (暫定)
+
+> 若要在本機直接開發前端（在 `frontend/` 執行 `npm install` / `npm run dev` / `npm test`），請使用 Node.js 20+（前端 Docker build image 亦使用 Node 20）。
+
 1. docker compose up db -d
 2. 等約 10 秒讓 MySQL 啟動完成
 3. 餵入 schema：
