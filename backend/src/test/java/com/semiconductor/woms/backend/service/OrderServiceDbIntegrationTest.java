@@ -1,8 +1,10 @@
 package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.dto.OrderRequest;
+import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
+import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,24 +25,37 @@ class OrderServiceDbIntegrationTest {
 
     private final OrderService orderService;
     private final OrderRepository orderRepository;
+    private final CustomerRepository customerRepository;
     private final TransactionTemplate tx;
 
     @Autowired
     OrderServiceDbIntegrationTest(
             OrderService orderService,
             OrderRepository orderRepository,
+            CustomerRepository customerRepository,
             PlatformTransactionManager txManager
     ) {
         this.orderService = orderService;
         this.orderRepository = orderRepository;
+        this.customerRepository = customerRepository;
         this.tx = new TransactionTemplate(txManager);
     }
 
-    private static OrderRequest newValidRequest() {
+    private String createCustomerAndReturnId() {
+        return tx.execute(status -> {
+            Customer customer = new Customer();
+            customer.setCustomerCode("CUST-IT-" + UUID.randomUUID());
+            customer.setName("Integration Test Customer");
+            customer.setIsActive(true);
+            return customerRepository.save(customer).getId();
+        });
+    }
+
+    private static OrderRequest newValidRequest(String customerId) {
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-IT");
         req.setWaferTypeId("WT-IT");
-        req.setCustomerId("CUST-IT");
+        req.setCustomerId(customerId);
         req.setQuantity(100);
         req.setCustomerDueDate(LocalDate.now().plusDays(10));
         return req;
@@ -47,7 +63,8 @@ class OrderServiceDbIntegrationTest {
 
     @Test
     void createOrder_thenCancel_persistsStateTransitionsAndUpdatesVersion() {
-        String id = tx.execute(status -> orderService.createOrder(newValidRequest()).getId());
+        String customerId = createCustomerAndReturnId();
+        String id = tx.execute(status -> orderService.createOrder(newValidRequest(customerId)).getId());
         assertNotNull(id);
 
         Integer versionAfterCreate = tx.execute(status -> orderRepository.findById(id).orElseThrow().getVersion());
@@ -71,7 +88,8 @@ class OrderServiceDbIntegrationTest {
 
     @Test
     void createOrder_persistsDefaultsAndCanBeReloaded() {
-        String id = tx.execute(status -> orderService.createOrder(newValidRequest()).getId());
+        String customerId = createCustomerAndReturnId();
+        String id = tx.execute(status -> orderService.createOrder(newValidRequest(customerId)).getId());
 
         Order reloaded = tx.execute(status -> orderRepository.findById(id).orElseThrow());
         assertNotNull(reloaded.getId());
