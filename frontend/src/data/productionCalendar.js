@@ -1,9 +1,7 @@
 export const DAILY_CAPACITY = 10000
 
 export const FACTORIES = [
-  { id: 'FAB-001', name: 'FAB-001', status: 'normal' },
-  { id: 'FAB-002', name: 'FAB-002', status: 'normal' },
-  { id: 'FAB-003', name: 'FAB-003', status: 'maintenance' },
+  { id: 'factory-001', name: 'FAB-001', status: 'normal' },
 ]
 
 export const productionCalendar = {

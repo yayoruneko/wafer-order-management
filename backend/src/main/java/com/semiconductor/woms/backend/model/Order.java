@@ -71,7 +71,8 @@ public class Order {
 
     @PrePersist
     protected void onCreate() {
-        id = UUID.randomUUID().toString();
+        String shortUuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        id = "WO-" + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-" + shortUuid;
         remainingQuantity = quantity;
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
