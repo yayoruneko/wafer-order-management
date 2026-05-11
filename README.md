@@ -19,7 +19,7 @@ docker compose up --build
 
 ### 日常啟動（不清資料）
 
-``
+```
 docker compose up
 ```
 
