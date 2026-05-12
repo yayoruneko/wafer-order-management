@@ -179,12 +179,16 @@ class OrderServiceTest {
     @Test
     void createOrder_acceptsExactMinimumQuantity() {
         OrderRequest req = new OrderRequest();
-        req.setFactoryId("FAB-001"); req.setWaferTypeId("WT-001"); req.setCustomerId("CUST-001");
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
         req.setQuantity(25);
         req.setCustomerDueDate(LocalDate.now().plusDays(1));
 
         Customer customer = new Customer();
-        customer.setId("CUST-001"); customer.setCustomerCode("C-001"); customer.setName("Test");
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
@@ -203,12 +207,16 @@ class OrderServiceTest {
     @Test
     void createOrder_acceptsExactMaximumQuantity() {
         OrderRequest req = new OrderRequest();
-        req.setFactoryId("FAB-001"); req.setWaferTypeId("WT-001"); req.setCustomerId("CUST-001");
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
         req.setQuantity(2500);
         req.setCustomerDueDate(LocalDate.now().plusDays(1));
 
         Customer customer = new Customer();
-        customer.setId("CUST-001"); customer.setCustomerCode("C-001"); customer.setName("Test");
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
@@ -227,12 +235,16 @@ class OrderServiceTest {
     void createOrder_acceptsDueDateToday() {
         // Validation is isBefore(now), so today is allowed.
         OrderRequest req = new OrderRequest();
-        req.setFactoryId("FAB-001"); req.setWaferTypeId("WT-001"); req.setCustomerId("CUST-001");
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
         req.setQuantity(100);
         req.setCustomerDueDate(LocalDate.now());
 
         Customer customer = new Customer();
-        customer.setId("CUST-001"); customer.setCustomerCode("C-001"); customer.setName("Test");
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
@@ -251,7 +263,9 @@ class OrderServiceTest {
     @Test
     void createOrder_doesNotEnqueueWhenCustomerNotFound() {
         OrderRequest req = new OrderRequest();
-        req.setFactoryId("FAB-001"); req.setWaferTypeId("WT-001"); req.setCustomerId("GHOST");
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("GHOST");
         req.setQuantity(100);
         req.setCustomerDueDate(LocalDate.now().plusDays(5));
 
@@ -275,15 +289,22 @@ class OrderServiceTest {
     void getAllOrders_returnsMappedOrdersWithCustomerInfo() {
         Order order = new Order();
         order.setId("o-99");
-        order.setFactoryId("FAB-001"); order.setWaferTypeId("WT-001"); order.setCustomerId("CUST-001");
-        order.setQuantity(200); order.setRemainingQuantity(200);
+        order.setFactoryId("FAB-001");
+        order.setWaferTypeId("WT-001");
+        order.setCustomerId("CUST-001");
+        order.setQuantity(200);
+        order.setRemainingQuantity(200);
         order.setCustomerDueDate(LocalDate.now().plusDays(5));
         order.setStatus(OrderStatus.PENDING);
-        order.setIsDelayed(false); order.setDelayDays(0);
-        order.setCreatedAt(LocalDateTime.now()); order.setUpdatedAt(LocalDateTime.now());
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
         Customer customer = new Customer();
-        customer.setId("CUST-001"); customer.setCustomerCode("CODE-XYZ"); customer.setName("XYZ Corp");
+        customer.setId("CUST-001");
+        customer.setCustomerCode("CODE-XYZ");
+        customer.setName("XYZ Corp");
 
         when(orderRepository.findAll()).thenReturn(java.util.List.of(order));
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
@@ -302,12 +323,17 @@ class OrderServiceTest {
     void getOrderById_returnsResponseForExistingOrder() {
         Order order = new Order();
         order.setId("o-42");
-        order.setFactoryId("FAB-001"); order.setWaferTypeId("WT-001"); order.setCustomerId("CUST-001");
-        order.setQuantity(150); order.setRemainingQuantity(150);
+        order.setFactoryId("FAB-001");
+        order.setWaferTypeId("WT-001");
+        order.setCustomerId("CUST-001");
+        order.setQuantity(150);
+        order.setRemainingQuantity(150);
         order.setCustomerDueDate(LocalDate.now().plusDays(7));
         order.setStatus(OrderStatus.PENDING);
-        order.setIsDelayed(false); order.setDelayDays(0);
-        order.setCreatedAt(LocalDateTime.now()); order.setUpdatedAt(LocalDateTime.now());
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
         when(orderRepository.findById("o-42")).thenReturn(Optional.of(order));
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.empty());
