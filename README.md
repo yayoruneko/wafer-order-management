@@ -2,6 +2,8 @@
 
 ## 本地啟動方式
 
+> 若要在本機直接開發前端（在 `frontend/` 執行 `npm install` / `npm run dev` / `npm test`），請使用 Node.js 20+（前端 Docker build image 亦使用 Node 20）。
+
 ### 需求
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) （啟動後確認右下角 Docker 圖示正在執行）
 
@@ -17,7 +19,7 @@ docker compose up --build
 
 ### 日常啟動（不清資料）
 
-``
+```
 docker compose up
 ```
 
