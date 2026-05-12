@@ -13,6 +13,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleIllegalArgument(IllegalArgumentException ex) {
-        return Map.of("message", ex.getMessage());
+        String message = ex.getMessage();
+        return Map.of("message", message != null ? message : "");
     }
 }
