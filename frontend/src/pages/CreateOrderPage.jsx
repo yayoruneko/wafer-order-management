@@ -35,7 +35,7 @@ export default function CreateOrderPage() {
     canSubmit,
     submitting,
     submit,
-    submitWithAcceptedDate,
+    cancelCreatedOrder,
   } = useCreateOrder()
 
   const [addOpen, setAddOpen] = useState(false)
@@ -51,16 +51,18 @@ export default function CreateOrderPage() {
       const result = await submit()
       if (!result) return
       if (result.status === 'ok') {
-        console.log('submitting order', result.payload)
         toast.success(t.toast.createOrderSuccess, { id: 'create-order' })
         navigate('/')
         return
       }
+      const earliestDate = result.earliest
+        ? new Date(`${result.earliest}T00:00:00`)
+        : null
       setDelayInfo({
+        orderId: result.orderId,
         requestedDate: dueDate,
-        earliestDate: result.earliest,
+        earliestDate,
         delayDays: result.delayDays,
-        conflictingOrders: result.conflictingOrders,
         scheduleWarning: result.scheduleWarning,
       })
     } catch {
@@ -72,25 +74,28 @@ export default function CreateOrderPage() {
     if (!delayInfo || accepting || cancelling) return
     setAccepting(true)
     try {
-      const payload = await submitWithAcceptedDate(delayInfo.earliestDate)
-      console.log('submitting order with delay', payload)
       toast.success(t.toast.createOrderDelaySuccess, { id: 'create-order' })
       setDelayInfo(null)
       navigate('/')
-    } catch {
-      toast.error(t.toast.genericError, { id: 'create-order' })
     } finally {
       setAccepting(false)
     }
-  }, [delayInfo, accepting, cancelling, submitWithAcceptedDate, navigate, t])
+  }, [delayInfo, accepting, cancelling, navigate, t])
 
   const handleCancelDelay = useCallback(async () => {
-    if (accepting || cancelling) return
+    if (!delayInfo || accepting || cancelling) return
     setCancelling(true)
-    await new Promise((r) => setTimeout(r, 400))
-    setCancelling(false)
-    setDelayInfo(null)
-  }, [accepting, cancelling])
+    try {
+      await cancelCreatedOrder(delayInfo.orderId)
+      toast.success(t.toast.cancelOrderSuccess(delayInfo.orderId), {
+        id: 'create-order',
+      })
+    } finally {
+      setCancelling(false)
+      setDelayInfo(null)
+      navigate('/')
+    }
+  }, [delayInfo, accepting, cancelling, cancelCreatedOrder, navigate, t])
 
   const handleAddCustomer = useCallback(
     ({ name, code }) => {

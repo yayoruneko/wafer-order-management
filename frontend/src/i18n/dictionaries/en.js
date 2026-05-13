@@ -16,6 +16,7 @@ const en = {
   nav: {
     orders: 'Orders',
     calendar: 'Calendar',
+    users: 'Users',
     signOut: 'Sign out',
     switchLanguage: 'Switch language',
   },
@@ -160,6 +161,22 @@ const en = {
     hideConflict: 'Hide conflict details',
   },
 
+  orderSlots: {
+    title: 'Production schedule',
+    summary: (days, qty) => `${days} day${days === 1 ? '' : 's'} · ${qty} wafers`,
+    columns: {
+      date: 'Date',
+      qty: 'Quantity',
+      share: 'Share',
+    },
+    empty: 'No production slots assigned yet.',
+    loading: 'Loading schedule…',
+    loadError: 'Could not load schedule. Please try again.',
+    regionAria: (id) => `Production schedule for ${id}`,
+    toggleShow: 'Show production dates',
+    toggleHide: 'Hide production dates',
+  },
+
   editOrder: {
     breadcrumbRoot: 'Wafer orders',
     breadcrumbEdit: 'Edit',
@@ -295,6 +312,40 @@ const en = {
     footerHint:
       'Click any day to view scheduled orders · Drag-and-drop to reschedule',
     lastSync: (sec) => `Last sync ${sec} sec ago`,
+  },
+
+  userAdmin: {
+    title: 'User management',
+    subtitle: 'Manage user roles and permissions',
+    columns: {
+      username: 'Username',
+      displayName: 'Name',
+      role: 'Role',
+      createdAt: 'Created',
+      actions: 'Actions',
+    },
+    roleLabels: {
+      SUPER_ADMIN: 'Super admin',
+      ADMIN: 'Admin',
+      VIEWER: 'Viewer',
+    },
+    actions: {
+      promote: 'Promote to admin',
+      demote: 'Demote to viewer',
+      pending: 'Working…',
+    },
+    badgeSelf: 'You',
+    superLocked: 'Super admin role cannot be changed',
+    loadError: 'Could not load users. Please try again.',
+    forbiddenTitle: 'No access',
+    forbiddenBody: 'Only super admins can change user roles.',
+    backToOrders: 'Back to orders',
+    toast: {
+      promoteSuccess: (name) => `${name} promoted to admin`,
+      demoteSuccess: (name) => `${name} demoted to viewer`,
+      updateError: 'Failed to update user. Please try again.',
+    },
+    empty: 'No other users to manage.',
   },
 }
 

@@ -175,6 +175,36 @@ export const styles = {
     'inline-flex h-8 items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 text-[12px] font-medium text-red-600 hover:bg-red-50 transition',
   conflictBtnIcon: 'h-3.5 w-3.5',
 
+  // Order id expand chevron
+  idCellRow: 'flex items-center gap-1.5 min-w-0',
+  idExpandBtn:
+    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition',
+  idExpandIcon: 'h-3.5 w-3.5 transition-transform',
+  idExpandIconOpen: 'h-3.5 w-3.5 rotate-90 transition-transform',
+
+  // Slot accordion
+  slotsWrap:
+    'relative border-b border-stone-100 bg-stone-50/70 last:border-b-0',
+  slotsInner: 'flex flex-col gap-3 px-6 py-4',
+  slotsTitle:
+    'text-[11px] font-semibold uppercase tracking-wider text-stone-500',
+  slotsSummary: 'text-[12px] text-stone-500',
+  slotsTableHead:
+    'grid grid-cols-[160px_120px_1fr] gap-3 border-b border-stone-200 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400',
+  slotsRow:
+    'grid grid-cols-[160px_120px_1fr] gap-3 border-b border-stone-100 py-1.5 last:border-b-0 text-[13px] text-stone-800',
+  slotsRowDate: 'font-medium text-stone-900',
+  slotsRowQty: 'font-mono text-stone-800',
+  slotsRowBar:
+    'flex items-center gap-2 text-[11px] text-stone-500',
+  slotsBarTrack:
+    'h-1.5 flex-1 max-w-[180px] overflow-hidden rounded-full bg-stone-200',
+  slotsBarFill: 'h-full rounded-full bg-stone-700',
+  slotsEmpty: 'text-[12px] text-stone-400',
+  slotsLoading:
+    'inline-flex items-center gap-2 text-[12px] text-stone-400',
+  slotsError: 'text-[12px] text-red-500',
+
   // Status pill
   statusPill:
     'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium',

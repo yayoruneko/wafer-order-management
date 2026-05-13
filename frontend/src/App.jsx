@@ -5,6 +5,7 @@ import CreateOrderPage from './pages/CreateOrderPage'
 import EditOrderPage from './pages/EditOrderPage'
 import LoginPage from './pages/LoginPage'
 import CalendarPage from './pages/CalendarPage'
+import UserAdminPage from './pages/UserAdminPage'
 import { AuthProvider } from './auth/AuthProvider'
 import ProtectedRoute from './auth/ProtectedRoute'
 import I18nProvider from './i18n/I18nProvider'
@@ -65,6 +66,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <UserAdminPage />
               </ProtectedRoute>
             }
           />

@@ -88,7 +88,8 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
       const iso = toISO(date)
       const entry = factoryData[iso]
       const count = entry?.count ?? 0
-      const delayedOrders = entry?.delayedOrders ?? []
+      const orders = entry?.orders ?? []
+      const delayedOrders = orders.filter((o) => o.isDelayed)
       return {
         iso,
         date,
@@ -100,8 +101,10 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
         capacity: DAILY_CAPACITY,
         utilization: count / DAILY_CAPACITY,
         load: classifyCapacity(count),
+        orders,
         delayedOrders,
         hasDelay: delayedOrders.length > 0,
+        hasOrders: orders.length > 0,
       }
     })
   }, [cells, factoryData, monthAnchor, todayDate])
@@ -154,7 +157,7 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
   const openDay = useCallback(
     (iso) => {
       const cell = monthGrid.find((c) => c.iso === iso)
-      if (!cell || !cell.hasDelay) return
+      if (!cell || !cell.hasOrders) return
       setSelectedISO(iso)
     },
     [monthGrid],

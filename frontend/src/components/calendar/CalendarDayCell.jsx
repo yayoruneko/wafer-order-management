@@ -8,7 +8,7 @@ function formatCount(n) {
 
 function CalendarDayCellBase({ cell, onOpen }) {
   const ls = loadStyles[cell.load]
-  const clickable = cell.hasDelay
+  const clickable = cell.hasOrders
   const muted = !cell.inMonth
 
   const handleClick = () => {
@@ -35,7 +35,9 @@ function CalendarDayCellBase({ cell, onOpen }) {
       tabIndex={clickable ? 0 : undefined}
       aria-label={
         clickable
-          ? `${cell.iso} 排程衝突，${cell.delayedOrders.length} 筆訂單延誤`
+          ? cell.hasDelay
+            ? `${cell.iso} 當日 ${cell.orders.length} 筆訂單，含 ${cell.delayedOrders.length} 筆延誤`
+            : `${cell.iso} 當日 ${cell.orders.length} 筆訂單`
           : undefined
       }
       onClick={handleClick}

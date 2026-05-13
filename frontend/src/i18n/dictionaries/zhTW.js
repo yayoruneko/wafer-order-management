@@ -16,6 +16,7 @@ const zhTW = {
   nav: {
     orders: '訂單',
     calendar: '行事曆',
+    users: '使用者',
     signOut: '登出',
     switchLanguage: '切換語言',
   },
@@ -156,6 +157,22 @@ const zhTW = {
     hideConflict: '收合衝突詳情',
   },
 
+  orderSlots: {
+    title: '生產日期排程',
+    summary: (days, qty) => `共 ${days} 天 · ${qty} 片`,
+    columns: {
+      date: '日期',
+      qty: '數量',
+      share: '佔比',
+    },
+    empty: '此訂單尚未排入任何生產日。',
+    loading: '載入排程中…',
+    loadError: '無法載入排程，請稍後再試。',
+    regionAria: (id) => `訂單 ${id} 的生產排程`,
+    toggleShow: '展開生產日期',
+    toggleHide: '收合生產日期',
+  },
+
   editOrder: {
     breadcrumbRoot: '晶圓訂單',
     breadcrumbEdit: '編輯',
@@ -284,6 +301,40 @@ const zhTW = {
     rescheduleAll: '重排所有訂單',
     footerHint: '點選日期以查看排定訂單 · 拖曳可重新排程',
     lastSync: (sec) => `${sec} 秒前同步`,
+  },
+
+  userAdmin: {
+    title: '使用者管理',
+    subtitle: '管理使用者角色與權限',
+    columns: {
+      username: '帳號',
+      displayName: '姓名',
+      role: '角色',
+      createdAt: '建立時間',
+      actions: '操作',
+    },
+    roleLabels: {
+      SUPER_ADMIN: '超級管理員',
+      ADMIN: '管理員',
+      VIEWER: '檢視者',
+    },
+    actions: {
+      promote: '升級為管理員',
+      demote: '降級為檢視者',
+      pending: '處理中…',
+    },
+    badgeSelf: '本人',
+    superLocked: '超級管理員不可變更',
+    loadError: '無法載入使用者，請稍後再試。',
+    forbiddenTitle: '無存取權限',
+    forbiddenBody: '只有超級管理員可以變更使用者角色。',
+    backToOrders: '返回訂單',
+    toast: {
+      promoteSuccess: (name) => `${name} 已升級為管理員`,
+      demoteSuccess: (name) => `${name} 已降級為檢視者`,
+      updateError: '更新失敗，請稍後再試',
+    },
+    empty: '目前沒有其他使用者。',
   },
 }
 

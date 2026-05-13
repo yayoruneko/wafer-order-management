@@ -1,11 +1,12 @@
 import { memo } from 'react'
-import { Pencil, X } from 'lucide-react'
+import { ChevronRight, Pencil, X } from 'lucide-react'
 import { Cell } from './Cell'
 import StatusPill from './StatusPill'
 import CustomerLogo from './CustomerLogo'
 import ScheduleCell from './ScheduleCell'
 import InlineEditCell from './InlineEditCell'
 import Checkbox from './Checkbox'
+import useI18n from '../../i18n/useI18n'
 import {
   colWidths,
   densityRow,
@@ -25,8 +26,10 @@ function OrderRowBase({
   expanded = false,
   onToggleExpand,
 }) {
+  const { t } = useI18n()
   const cancelled = order.status === 'CANCELLED'
   const delayed = order.delayedDays > 0 && !cancelled
+  const expandable = !cancelled && !!onToggleExpand
   const strike = cancelled ? styles.cellStrike : ''
   const baseTextStrong = cancelled
     ? `${styles.cellTextStrong} ${styles.cellStrike}`
@@ -57,7 +60,31 @@ function OrderRowBase({
       </Cell>
 
       <Cell className={colWidths.id}>
-        <span className={baseTextStrong}>{order.id}</span>
+        <div className={styles.idCellRow}>
+          {expandable ? (
+            <button
+              type="button"
+              className={styles.idExpandBtn}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleExpand?.(order.id)
+              }}
+              aria-expanded={expanded}
+              aria-controls={`slots-${order.id}`}
+              aria-label={
+                expanded ? t.orderSlots.toggleHide : t.orderSlots.toggleShow
+              }
+              title={expanded ? t.orderSlots.toggleHide : t.orderSlots.toggleShow}
+            >
+              <ChevronRight
+                className={
+                  expanded ? styles.idExpandIconOpen : styles.idExpandIcon
+                }
+              />
+            </button>
+          ) : null}
+          <span className={baseTextStrong}>{order.id}</span>
+        </div>
       </Cell>
 
       <Cell className={colWidths.customer}>
