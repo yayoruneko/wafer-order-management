@@ -50,7 +50,7 @@ class SchedulerServiceTest {
     }
 
     @Test
-    void 數量小於當日剩餘產能_應該只產生一個slot且remainingQuantity歸零() {
+    void scheduleOrder_quantityFitsInToday_producesSingleSlotAndZerosRemaining() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
 
@@ -66,7 +66,7 @@ class SchedulerServiceTest {
     }
 
     @Test
-    void 數量超過當日剩餘產能_應該拆分到下一天且remainingQuantity正確扣減() {
+    void scheduleOrder_quantityExceedsDailyCapacity_splitsAcrossDays() {
         mockOrder.setQuantity(800);
         mockOrder.setRemainingQuantity(800);
 
@@ -90,7 +90,7 @@ class SchedulerServiceTest {
     }
 
     @Test
-    void 拆分後lastSlotDate等於交期_isDelayed為false且scheduleWarning為null() {
+    void scheduleOrder_lastSlotOnDueDate_isNotDelayedAndWarningIsNull() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
         mockOrder.setCustomerDueDate(LocalDate.now());
@@ -107,7 +107,7 @@ class SchedulerServiceTest {
     }
 
     @Test
-    void 拆分後lastSlotDate超過交期_isDelayed為true且scheduleWarning有內容() {
+    void scheduleOrder_lastSlotAfterDueDate_isDelayedAndWarningNotNull() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
         mockOrder.setCustomerDueDate(LocalDate.now().minusDays(1));
@@ -124,7 +124,7 @@ class SchedulerServiceTest {
     }
 
     @Test
-    void 總產能不足_狀態維持PENDING且scheduleWarning有內容() {
+    void scheduleOrder_capacityExhaustedWithin90Days_returnsUnschedulable() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
 
@@ -140,5 +140,107 @@ class SchedulerServiceTest {
         assertFalse(result.isSuccess());
         assertTrue(result.isUnschedulable());
         assertNotNull(mockOrder.getScheduleWarning());
+    }
+
+    // ── New test cases ────────────────────────────────────────────────────────
+
+    @Test
+    void scheduleOrder_throwsWhenOrderNotFound() {
+        when(orderRepo.findById("no-such-id")).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class, () -> schedulerService.scheduleOrder("no-such-id"));
+    }
+
+    @Test
+    void scheduleOrder_setsStatusToScheduledOnSuccess() {
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        schedulerService.scheduleOrder("order-001");
+
+        assertEquals(OrderStatus.SCHEDULED, mockOrder.getStatus());
+    }
+
+    @Test
+    void scheduleOrder_setsExpectedDueDateEqualToLastSlotDate() {
+        mockOrder.setQuantity(100);
+        mockOrder.setRemainingQuantity(100);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        schedulerService.scheduleOrder("order-001");
+
+        assertNotNull(mockOrder.getLastSlotDate());
+        assertNotNull(mockOrder.getExpectedDueDate());
+        assertEquals(mockOrder.getLastSlotDate(), mockOrder.getExpectedDueDate());
+    }
+
+    @Test
+    void scheduleOrder_calculatesDelayDaysCorrectly() {
+        // Due date 2 days ago → delayDays should be >= 2
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setCustomerDueDate(LocalDate.now().minusDays(2));
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isDelayed());
+        assertTrue(mockOrder.getDelayDays() >= 2, "Expected delayDays >= 2, got: " + mockOrder.getDelayDays());
+    }
+
+    @Test
+    void scheduleOrder_exactFitIntoAvailableCapacity_producesSingleSlot() {
+        // available = 10000 - 9500 = 500; order qty = 500 → exact fit, no spill to next day
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+
+        DailyCapacityUsage partialUsage = new DailyCapacityUsage();
+        partialUsage.setFactoryId("factory-001");
+        partialUsage.setSlotDate(LocalDate.now());
+        partialUsage.setUsedQuantity(9500);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any()))
+                .thenReturn(Optional.of(partialUsage));
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getSlots().size());
+        assertEquals(0, mockOrder.getRemainingQuantity());
+        assertEquals(LocalDate.now(), mockOrder.getLastSlotDate());
+    }
+
+    @Test
+    void getAvailableCapacity_returnsFullCapacityWhenNoUsageRecord() {
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.empty());
+
+        int available = schedulerService.getAvailableCapacity("factory-001", LocalDate.now());
+
+        assertEquals(10000, available);
+    }
+
+    @Test
+    void getAvailableCapacity_returnsZeroWhenFullyBooked() {
+        DailyCapacityUsage fullUsage = new DailyCapacityUsage();
+        fullUsage.setUsedQuantity(10000);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(fullUsage));
+
+        int available = schedulerService.getAvailableCapacity("factory-001", LocalDate.now());
+
+        assertEquals(0, available);
     }
 }

@@ -15,7 +15,7 @@ public class OrderRequest {
     private Integer quantity;
 
     @NotNull
-    @Future
+    @FutureOrPresent
     private LocalDate customerDueDate;
 
     @NotBlank

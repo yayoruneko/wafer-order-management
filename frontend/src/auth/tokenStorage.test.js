@@ -62,4 +62,38 @@ describe('tokenStorage', () => {
     expect(getStoredUser()).toBeNull()
     expect(window.localStorage.getItem('woms.persist')).toBeNull()
   })
+
+  // ── New test cases ────────────────────────────────────────────────────────
+
+  it('setSession without refreshToken does not store a refresh token', () => {
+    setSession({ accessToken: 'a1', remember: true })
+    expect(getRefreshToken()).toBeNull()
+    expect(getAccessToken()).toBe('a1')
+  })
+
+  it('setSession without user does not store user', () => {
+    setSession({ accessToken: 'a1', refreshToken: 'r1', remember: false })
+    expect(getStoredUser()).toBeNull()
+  })
+
+  it('setSession clears old storage when switching remember flag', () => {
+    // First login with remember=true → localStorage
+    setSession({ accessToken: 'old', refreshToken: 'r1', remember: true })
+    expect(window.localStorage.getItem('woms.accessToken')).toBe('old')
+
+    // Second login with remember=false → sessionStorage, localStorage cleared
+    setSession({ accessToken: 'new', refreshToken: 'r2', remember: false })
+    expect(window.sessionStorage.getItem('woms.accessToken')).toBe('new')
+    expect(window.localStorage.getItem('woms.accessToken')).toBeNull()
+  })
+
+  it('getStoredUser returns null when stored value is corrupt JSON', () => {
+    window.localStorage.setItem('woms.persist', '1')
+    window.localStorage.setItem('woms.user', '{not valid json}')
+    expect(getStoredUser()).toBeNull()
+  })
+
+  it('clearSession on empty storage does not throw', () => {
+    expect(() => clearSession()).not.toThrow()
+  })
 })
