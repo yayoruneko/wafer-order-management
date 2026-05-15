@@ -1,0 +1,117 @@
+package com.semiconductor.woms.backend.service;
+
+import com.semiconductor.woms.backend.model.DailyCapacityUsage;
+import com.semiconductor.woms.backend.model.ProductionSlot;
+import com.semiconductor.woms.backend.model.enums.OrderStatus;
+import com.semiconductor.woms.backend.repository.DailyCapacityUsageRepository;
+import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class SchedulerServiceImpl implements SchedulerService {
+
+    private static final int MAX_LOOKAHEAD_DAYS = 90;
+    private static final int DAILY_CAPACITY = 10000;
+
+    private final DailyCapacityUsageRepository capacityRepo;
+    private final ProductionSlotRepository slotRepo;
+    private final OrderRepository orderRepo;
+
+    @Override
+    @Transactional
+    public ScheduleResult scheduleOrder(String orderId) {
+        var order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+        int remaining = order.getRemainingQuantity();
+        LocalDate cursor = LocalDate.now();
+        LocalDate deadline = cursor.plusDays(MAX_LOOKAHEAD_DAYS);
+        List<ProductionSlot> slots = new ArrayList<>();
+
+        // 逐天找剩餘產能，填入 slot
+        while (remaining > 0 && !cursor.isAfter(deadline)) {
+            int available = getAvailableCapacity(order.getFactoryId(), cursor);
+            if (available > 0) {
+                int toSchedule = Math.min(available, remaining);
+
+                ProductionSlot slot = new ProductionSlot();
+                slot.setOrderId(orderId);
+                slot.setFactoryId(order.getFactoryId());
+                slot.setSlotDate(cursor);
+                slot.setQuantity(toSchedule);
+                slots.add(slot);
+
+                updateCapacityUsage(order.getFactoryId(), cursor, toSchedule);
+                remaining -= toSchedule;
+            }
+            cursor = cursor.plusDays(1);
+        }
+
+        // 90天內產能不足
+        if (remaining > 0) {
+            order.setRemainingQuantity(remaining);
+            order.setScheduleWarning("90 天內總產能不足，目前最早可完成日為 " + cursor);
+            orderRepo.save(order);
+            return ScheduleResult.unschedulable(orderId);
+        }
+
+        // 儲存所有 slot
+        slotRepo.saveAll(slots);
+
+        LocalDate lastSlotDate = slots.get(slots.size() - 1).getSlotDate();
+        boolean isDelayed = lastSlotDate.isAfter(order.getCustomerDueDate());
+        int delayDays = isDelayed
+                ? (int) ChronoUnit.DAYS.between(order.getCustomerDueDate(), lastSlotDate)
+                : 0;
+
+        order.setRemainingQuantity(0);
+        order.setLastSlotDate(lastSlotDate);
+        order.setExpectedDueDate(lastSlotDate);
+        order.setIsDelayed(isDelayed);
+        order.setDelayDays(delayDays);
+        order.setScheduleWarning(isDelayed
+                ? "排程日 " + lastSlotDate + " 晚於客戶要求交期 "
+                  + order.getCustomerDueDate() + "，延誤 " + delayDays + " 天"
+                : null);
+        order.setStatus(OrderStatus.SCHEDULED);
+        orderRepo.save(order);
+
+        return ScheduleResult.success(orderId, slots, isDelayed);
+    }
+
+    @Override
+    public void rescheduleAll() {
+        // Week 2 實作全局重排
+    }
+
+    @Override
+    public int getAvailableCapacity(String factoryId, LocalDate date) {
+        return capacityRepo.findByFactoryIdAndSlotDate(factoryId, date)
+                .map(usage -> DAILY_CAPACITY - usage.getUsedQuantity())
+                .orElse(DAILY_CAPACITY);
+    }
+
+    // 更新每日產能使用量
+    private void updateCapacityUsage(String factoryId, LocalDate date, int quantity) {
+        DailyCapacityUsage usage = capacityRepo
+                .findByFactoryIdAndSlotDate(factoryId, date)
+                .orElseGet(() -> {
+                    DailyCapacityUsage u = new DailyCapacityUsage();
+                    u.setFactoryId(factoryId);
+                    u.setSlotDate(date);
+                    u.setUsedQuantity(0);
+                    return u;
+                });
+        usage.setUsedQuantity(usage.getUsedQuantity() + quantity);
+        capacityRepo.save(usage);
+    }
+}

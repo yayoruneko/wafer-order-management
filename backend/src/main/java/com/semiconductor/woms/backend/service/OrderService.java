@@ -1,0 +1,103 @@
+package com.semiconductor.woms.backend.service;
+
+import com.semiconductor.woms.backend.dto.OrderRequest;
+import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.SchedulingAction;
+import com.semiconductor.woms.backend.model.enums.OrderStatus;
+import com.semiconductor.woms.backend.repository.CustomerRepository;
+import com.semiconductor.woms.backend.repository.OrderRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class OrderService {
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
+    private SchedulingQueueService schedulingQueueService;
+
+    @Transactional
+    public OrderResponse createOrder(OrderRequest request) {
+        if (request.getQuantity() < 25 || request.getQuantity() > 2500) {
+            throw new IllegalArgumentException("數量必須在 25 到 2500 之間");
+        }
+        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("交期已過，無法新增此訂單");
+        }
+
+        customerRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new IllegalArgumentException("找不到此客戶"));
+
+        Order order = new Order();
+        order.setFactoryId(request.getFactoryId());
+        order.setWaferTypeId(request.getWaferTypeId());
+        order.setCustomerId(request.getCustomerId());
+        order.setQuantity(request.getQuantity());
+        order.setCustomerDueDate(request.getCustomerDueDate());
+        order.setCreatedBy("user-admin-001"); // Week 3 換成 JWT SecurityContext
+
+        Order savedOrder = orderRepository.save(order);
+
+        // 串接後端B：把排程任務加入佇列
+        schedulingQueueService.enqueue(savedOrder.getId(), SchedulingAction.SCHEDULE_ORDER);
+
+        return convertToResponse(savedOrder);
+    }
+
+    public List<OrderResponse> getAllOrders() {
+        return orderRepository.findAll().stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public OrderResponse getOrderById(String id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
+        return convertToResponse(order);
+    }
+
+    @Transactional
+    public void cancelOrder(String id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
+        order.setCancelledFromStatus(order.getStatus());
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+    }
+
+    private OrderResponse convertToResponse(Order order) {
+        OrderResponse res = new OrderResponse();
+        res.setId(order.getId());
+        res.setStatus(order.getStatus().name());
+        res.setQuantity(order.getQuantity());
+        res.setRemainingQuantity(order.getRemainingQuantity());
+        res.setCustomerDueDate(order.getCustomerDueDate());
+        res.setLastSlotDate(order.getLastSlotDate());
+        res.setExpectedDueDate(order.getExpectedDueDate());
+        res.setIsDelayed(order.getIsDelayed());
+        res.setDelayDays(order.getDelayDays());
+        res.setScheduleWarning(order.getScheduleWarning());
+        res.setCustomerId(order.getCustomerId());
+        res.setCreatedAt(order.getCreatedAt());
+        res.setUpdatedAt(order.getUpdatedAt());
+
+        // 從 Customer 表 join customerCode 和 customerName
+        customerRepository.findById(order.getCustomerId()).ifPresent(customer -> {
+            res.setCustomerCode(customer.getCustomerCode());
+            res.setCustomerName(customer.getName());
+        });
+
+        return res;
+    }
+}

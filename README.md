@@ -1,15 +1,48 @@
 # Wafer 訂單管理排程系統
 
-## 本地啟動方式 (暫定)
-1. docker compose up db -d
-2. 等約 10 秒讓 MySQL 啟動完成
-3. 餵入 schema：
-Get-Content backend\src\main\resources\schema.sql | docker exec -i wafer-order-management-db-1 mysql -u root -proot woms
-4. 餵入種子資料：
-Get-Content backend\src\main\resources\data.sql | docker exec -i wafer-order-management-db-1 mysql -u root -proot woms
-5. docker exec -it wafer-order-management-db-1 mysql -u root -proot woms
-6. SHOW TABLES; 應該看到 9 張表
-7. SELECT * FROM customers; 應該看到 3 筆資料
+## 本地啟動方式
+
+> 若要在本機直接開發前端（在 `frontend/` 執行 `npm install` / `npm run dev` / `npm test`），請使用 Node.js 20+（前端 Docker build image 亦使用 Node 20）。
+
+### 需求
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) （啟動後確認右下角 Docker 圖示正在執行）
+
+### 第一次啟動（或要重置資料庫）
+
+```
+docker compose down -v
+docker compose up --build
+```
+
+`-v` 會清除舊資料庫 volume，重新用 `schema.sql` 建表並用 `data.sql` 插入種子資料。
+`--build` 會重新編譯後端 JAR 與前端靜態檔，**首次約需 3–5 分鐘**。
+
+### 日常啟動（不清資料）
+
+```
+docker compose up
+```
+
+### 確認服務正常
+
+| 服務 | 網址 |
+|------|------|
+| 前端 | http://localhost:3000 |
+| 後端 Swagger | http://localhost:8080/swagger-ui.html |
+| MySQL | localhost:3306（帳號 `root`，密碼 `root`，DB `woms`） |
+
+後端啟動後約 5–10 秒，QueuePoller 會自動把種子訂單排程完畢，訂單狀態從 `PENDING` 變為 `SCHEDULED`。
+
+### 登入
+
+目前使用 mock 登入：輸入任意帳號，密碼填 `demo` 即可進入。
+
+### 停止
+
+```powershell
+docker compose down        # 停止並移除 container，資料保留
+docker compose down -v     # 停止並清除資料庫（下次啟動重置）
+```
 
 ## 分支說明
 - main：穩定版本，每週末合併
