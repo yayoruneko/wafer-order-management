@@ -12,7 +12,10 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(
                         "http://localhost:3000",
-                        "http://localhost:5173"  // Vite dev server
+                        "http://localhost:3001",
+                        "http://localhost:5173", // Vite dev server
+                        "http://141.147.153.54:3001", // Oracle Cloud staging
+                        "http://141.147.153.54:3000" // Oracle Cloud production
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
