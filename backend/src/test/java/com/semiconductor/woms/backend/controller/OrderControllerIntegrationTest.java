@@ -191,7 +191,7 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void cancelOrder_returns204() throws Exception {
+    void cancelOrder_returns200() throws Exception {
         Customer customer = new Customer();
         customer.setCustomerCode("CANCEL-" + UUID.randomUUID());
         customer.setName("Cancel Customer");
@@ -209,7 +209,7 @@ class OrderControllerIntegrationTest {
                 .get("id").asText();
 
         mockMvc.perform(delete("/api/orders/{id}", orderId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
     }
 
     @Test
