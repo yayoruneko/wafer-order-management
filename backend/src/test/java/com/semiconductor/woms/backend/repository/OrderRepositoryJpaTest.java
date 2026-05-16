@@ -108,6 +108,38 @@ class OrderRepositoryJpaTest {
         assertEquals("CUST-B", scheduled.get(0).getCustomerId());
     }
 
+    // ── New test cases ────────────────────────────────────────────────────────
+
+    @Test
+    void findByStatus_returnsEmptyListWhenNoOrdersMatchStatus() {
+        // Save a PENDING order; querying for COMPLETED should return nothing.
+        orderRepository.saveAndFlush(newValidOrder());
+
+        List<Order> result = orderRepository.findByStatus(OrderStatus.COMPLETED);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findByIsDelayedTrue_returnsEmptyListWhenNoDelayedOrders() {
+        Order nonDelayed = newValidOrder();
+        nonDelayed.setIsDelayed(false);
+        orderRepository.saveAndFlush(nonDelayed);
+
+        List<Order> delayed = orderRepository.findByIsDelayedTrue();
+        assertTrue(delayed.isEmpty());
+    }
+
+    @Test
+    void save_missingFactoryId_throwsDataIntegrityViolation() {
+        Order invalid = newValidOrder();
+        invalid.setFactoryId(null);
+
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            orderRepository.save(invalid);
+            orderRepository.flush();
+        });
+    }
+
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void optimisticLocking_preventsLostUpdate() {

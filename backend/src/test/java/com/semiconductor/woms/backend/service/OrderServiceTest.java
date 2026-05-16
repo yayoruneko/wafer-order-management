@@ -82,6 +82,36 @@ class OrderServiceTest {
     }
 
     @Test
+    void createOrder_rejectsQuantityAboveMax() {
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
+        req.setQuantity(2501);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
+        assertTrue(ex.getMessage().contains("2500"));
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void createOrder_rejectsUnknownCustomer() {
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("NONEXISTENT");
+        req.setQuantity(100);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        when(customerRepository.findById("NONEXISTENT")).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
+        assertTrue(ex.getMessage().contains("找不到此客戶"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void createOrder_rejectsPastDueDate() {
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-001");
@@ -170,5 +200,190 @@ class OrderServiceTest {
         when(orderRepository.findById("missing")).thenReturn(Optional.empty());
         RuntimeException ex = assertThrows(RuntimeException.class, () -> orderService.getOrderById("missing"));
         assertTrue(ex.getMessage().contains("missing"));
+    }
+
+    // ── Boundary: exact min/max quantity ──────────────────────────────────────
+
+    @Test
+    void createOrder_acceptsExactMinimumQuantity() {
+        setupSecurityContext();
+
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
+        req.setQuantity(25);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        Customer customer = new Customer();
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            if (o.getId() == null) o.setId("id-min");
+            if (o.getRemainingQuantity() == null) o.setRemainingQuantity(o.getQuantity());
+            if (o.getCreatedAt() == null) o.setCreatedAt(LocalDateTime.now());
+            if (o.getUpdatedAt() == null) o.setUpdatedAt(o.getCreatedAt());
+            return o;
+        });
+
+        OrderResponse res = orderService.createOrder(req);
+        assertEquals(25, res.getQuantity());
+        assertEquals(25, res.getRemainingQuantity());
+    }
+
+    @Test
+    void createOrder_acceptsExactMaximumQuantity() {
+        setupSecurityContext();
+
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
+        req.setQuantity(2500);
+        req.setCustomerDueDate(LocalDate.now().plusDays(1));
+
+        Customer customer = new Customer();
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            if (o.getId() == null) o.setId("id-max");
+            if (o.getRemainingQuantity() == null) o.setRemainingQuantity(o.getQuantity());
+            if (o.getCreatedAt() == null) o.setCreatedAt(LocalDateTime.now());
+            if (o.getUpdatedAt() == null) o.setUpdatedAt(o.getCreatedAt());
+            return o;
+        });
+
+        OrderResponse res = orderService.createOrder(req);
+        assertEquals(2500, res.getQuantity());
+    }
+
+    @Test
+    void createOrder_acceptsDueDateToday() {
+        setupSecurityContext();
+
+        // Validation is isBefore(now), so today is allowed.
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("CUST-001");
+        req.setQuantity(100);
+        req.setCustomerDueDate(LocalDate.now());
+
+        Customer customer = new Customer();
+        customer.setId("CUST-001");
+        customer.setCustomerCode("C-001");
+        customer.setName("Test");
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            if (o.getId() == null) o.setId("id-today");
+            if (o.getRemainingQuantity() == null) o.setRemainingQuantity(o.getQuantity());
+            if (o.getCreatedAt() == null) o.setCreatedAt(LocalDateTime.now());
+            if (o.getUpdatedAt() == null) o.setUpdatedAt(o.getCreatedAt());
+            return o;
+        });
+
+        assertDoesNotThrow(() -> orderService.createOrder(req));
+    }
+
+    // ── createOrder: enqueue must NOT fire when validation fails ──────────────
+
+    @Test
+    void createOrder_doesNotEnqueueWhenCustomerNotFound() {
+        OrderRequest req = new OrderRequest();
+        req.setFactoryId("FAB-001");
+        req.setWaferTypeId("WT-001");
+        req.setCustomerId("GHOST");
+        req.setQuantity(100);
+        req.setCustomerDueDate(LocalDate.now().plusDays(5));
+
+        when(customerRepository.findById("GHOST")).thenReturn(Optional.empty());
+
+        assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
+        verifyNoInteractions(schedulingQueueService);
+    }
+
+    // ── getAllOrders ───────────────────────────────────────────────────────────
+
+    @Test
+    void getAllOrders_returnsEmptyListWhenNoOrders() {
+        when(orderRepository.findAll()).thenReturn(List.of());
+        List<OrderResponse> result = orderService.getAllOrders();
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getAllOrders_returnsMappedOrdersWithCustomerInfo() {
+        Order order = new Order();
+        order.setId("o-99");
+        order.setFactoryId("FAB-001");
+        order.setWaferTypeId("WT-001");
+        order.setCustomerId("CUST-001");
+        order.setQuantity(200);
+        order.setRemainingQuantity(200);
+        order.setCustomerDueDate(LocalDate.now().plusDays(5));
+        order.setStatus(OrderStatus.PENDING);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Customer customer = new Customer();
+        customer.setId("CUST-001");
+        customer.setCustomerCode("CODE-XYZ");
+        customer.setName("XYZ Corp");
+
+        when(orderRepository.findAll()).thenReturn(java.util.List.of(order));
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
+
+        List<OrderResponse> result = orderService.getAllOrders();
+
+        assertEquals(1, result.size());
+        assertEquals("o-99", result.get(0).getId());
+        assertEquals("CODE-XYZ", result.get(0).getCustomerCode());
+        assertEquals("XYZ Corp", result.get(0).getCustomerName());
+    }
+
+    // ── getOrderById happy path ───────────────────────────────────────────────
+
+    @Test
+    void getOrderById_returnsResponseForExistingOrder() {
+        Order order = new Order();
+        order.setId("o-42");
+        order.setFactoryId("FAB-001");
+        order.setWaferTypeId("WT-001");
+        order.setCustomerId("CUST-001");
+        order.setQuantity(150);
+        order.setRemainingQuantity(150);
+        order.setCustomerDueDate(LocalDate.now().plusDays(7));
+        order.setStatus(OrderStatus.PENDING);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        when(orderRepository.findById("o-42")).thenReturn(Optional.of(order));
+        when(customerRepository.findById("CUST-001")).thenReturn(Optional.empty());
+
+        OrderResponse res = orderService.getOrderById("o-42");
+        assertEquals("o-42", res.getId());
+        assertEquals(150, res.getQuantity());
+        assertEquals("PENDING", res.getStatus());
+    }
+
+    // ── cancelOrder: not found ────────────────────────────────────────────────
+
+    @Test
+    void cancelOrder_throwsWhenOrderNotFound() {
+        when(orderRepository.findById("ghost-id")).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class, () -> orderService.cancelOrder("ghost-id"));
+        verify(orderRepository, never()).save(any());
     }
 }

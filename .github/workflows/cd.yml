@@ -1,0 +1,31 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, develop]
+
+jobs:
+  deploy:
+    name: Deploy to Oracle VM
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
+              cd ~/wafer-order-management-prod
+              git pull origin main
+              docker compose -p wafer-prod up --build -d --remove-orphans
+            else
+              cd ~/wafer-order-management-staging
+              git pull origin develop
+              docker compose -f docker-compose.staging.yml -p wafer-staging up --build -d --remove-orphans
+            fi
