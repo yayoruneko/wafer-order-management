@@ -3,7 +3,7 @@ package com.semiconductor.woms.backend.controller;
 import com.semiconductor.woms.backend.dto.OrderHistoryResponse;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
-import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
 import com.semiconductor.woms.backend.service.OrderService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +38,14 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable String id) {
         return ResponseEntity.ok(orderService.getOrderById(id));
+    }
+
+    // PUT /api/orders/{id} - 修改訂單數量或交期
+    @PutMapping("/{id}")
+    public ResponseEntity<OrderResponse> updateOrder(
+            @PathVariable String id,
+            @RequestBody OrderUpdateRequest request) {
+        return ResponseEntity.ok(orderService.updateOrder(id, request));
     }
 
     // DELETE /api/orders/{id} - 取消訂單

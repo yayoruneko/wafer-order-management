@@ -2,11 +2,14 @@ package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.SchedulingAction;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,12 @@ public class OrderService {
 
     @Autowired
     private SchedulingQueueService schedulingQueueService;
+
+    @Autowired
+    private ProductionSlotRepository productionSlotRepository;
+
+    @Autowired
+    private SchedulerService schedulerService;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
@@ -71,9 +80,68 @@ public class OrderService {
     public void cancelOrder(String id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("訂單已取消");
+        }
+
+        // 釋放所有 ProductionSlot，歸還產能
+        releaseSlots(order);
+
         order.setCancelledFromStatus(order.getStatus());
         order.setStatus(OrderStatus.CANCELLED);
+        order.setRemainingQuantity(order.getQuantity());
+        order.setLastSlotDate(null);
+        order.setExpectedDueDate(null);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setScheduleWarning(null);
         orderRepository.save(order);
+
+        // 觸發全局重排，讓其他 PENDING 訂單填入釋放的空位
+        schedulingQueueService.enqueueRescheduleAll();
+    }
+
+    @Transactional
+    public OrderResponse updateOrder(String id, OrderUpdateRequest request) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
+
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
+            throw new IllegalStateException("已取消或已完成的訂單無法修改");
+        }
+        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("交期已過，無法修改");
+        }
+
+        // 釋放原有 slot，歸還產能
+        releaseSlots(order);
+
+        // 更新訂單資料，重置排程狀態
+        order.setQuantity(request.getQuantity());
+        order.setCustomerDueDate(request.getCustomerDueDate());
+        order.setRemainingQuantity(request.getQuantity());
+        order.setStatus(OrderStatus.PENDING);
+        order.setLastSlotDate(null);
+        order.setExpectedDueDate(null);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setScheduleWarning(null);
+        Order saved = orderRepository.save(order);
+
+        // 觸發全局重排
+        schedulingQueueService.enqueueRescheduleAll();
+
+        return convertToResponse(saved);
+    }
+
+    // 釋放訂單的所有 ProductionSlot，並歸還 DailyCapacityUsage
+    private void releaseSlots(Order order) {
+        List<ProductionSlot> slots = productionSlotRepository.findByOrderId(order.getId());
+        for (ProductionSlot slot : slots) {
+            schedulerService.releaseCapacity(order.getFactoryId(), slot.getSlotDate(), slot.getQuantity());
+        }
+        productionSlotRepository.deleteByOrderId(order.getId());
     }
 
     private OrderResponse convertToResponse(Order order) {
