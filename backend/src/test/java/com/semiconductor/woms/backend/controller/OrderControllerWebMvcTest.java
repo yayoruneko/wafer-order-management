@@ -3,12 +3,17 @@ package com.semiconductor.woms.backend.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.security.JwtAccessDeniedHandler;
+import com.semiconductor.woms.backend.security.JwtAuthenticationEntryPoint;
+import com.semiconductor.woms.backend.security.JwtUtils;
+import com.semiconductor.woms.backend.security.UserDetailsServiceImpl;
 import com.semiconductor.woms.backend.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -33,7 +38,20 @@ class OrderControllerWebMvcTest {
     @MockBean
     private OrderService orderService;
 
+    @MockBean
+    private JwtUtils jwtUtils;
+
+    @MockBean
+    private UserDetailsServiceImpl userDetailsService;
+
+    @MockBean
+    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    @MockBean
+    private JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
     @Test
+    @WithMockUser(authorities = "ADMIN")
     void createOrder_returns201AndBody() throws Exception {
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-001");
@@ -64,6 +82,7 @@ class OrderControllerWebMvcTest {
     }
 
     @Test
+    @WithMockUser(authorities = "ADMIN")
     void getAllOrders_returnsList() throws Exception {
         OrderResponse a = new OrderResponse();
         a.setId("o-1");

@@ -5,18 +5,27 @@ import com.semiconductor.woms.backend.dto.OrderResponse;
 import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.model.SchedulingAction;
+import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,10 +42,30 @@ class OrderServiceTest {
     private CustomerRepository customerRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private SchedulingQueueService schedulingQueueService;
 
     @InjectMocks
     private OrderService orderService;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void setupSecurityContext() {
+        User user = new User();
+        user.setId("test-user-id");
+        user.setUsername("testuser");
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+
+        SecurityContext sc = SecurityContextHolder.createEmptyContext();
+        sc.setAuthentication(new UsernamePasswordAuthenticationToken(
+                "testuser", null, List.of(new SimpleGrantedAuthority("ADMIN"))));
+        SecurityContextHolder.setContext(sc);
+    }
 
     @Test
     void createOrder_rejectsQuantityBelowMin() {
@@ -47,7 +76,7 @@ class OrderServiceTest {
         req.setQuantity(24);
         req.setCustomerDueDate(LocalDate.now().plusDays(1));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> orderService.createOrder(req));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
         assertTrue(ex.getMessage().contains("25"));
         verifyNoInteractions(orderRepository);
     }
@@ -61,13 +90,15 @@ class OrderServiceTest {
         req.setQuantity(100);
         req.setCustomerDueDate(LocalDate.now().minusDays(1));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> orderService.createOrder(req));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
         assertTrue(ex.getMessage().contains("交期"));
         verifyNoInteractions(orderRepository);
     }
 
     @Test
     void createOrder_savesOrderAndReturnsResponse() {
+        setupSecurityContext();
+
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-001");
         req.setWaferTypeId("WT-001");
@@ -83,7 +114,6 @@ class OrderServiceTest {
 
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
-            // Simulate what JPA would set via @PrePersist.
             if (o.getId() == null) o.setId("generated-id");
             if (o.getCreatedAt() == null) o.setCreatedAt(LocalDateTime.now());
             if (o.getUpdatedAt() == null) o.setUpdatedAt(o.getCreatedAt());
@@ -108,7 +138,7 @@ class OrderServiceTest {
         assertEquals("WT-001", saved.getWaferTypeId());
         assertEquals("CUST-001", saved.getCustomerId());
         assertEquals(100, saved.getQuantity());
-        assertEquals("user-admin-001", saved.getCreatedBy());
+        assertEquals("test-user-id", saved.getCreatedBy());
         verify(schedulingQueueService).enqueue("generated-id", SchedulingAction.SCHEDULE_ORDER);
     }
 

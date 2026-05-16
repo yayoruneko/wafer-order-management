@@ -3,13 +3,18 @@ package com.semiconductor.woms.backend.service;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
+import com.semiconductor.woms.backend.model.enums.UserType;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,6 +31,7 @@ class OrderServiceDbIntegrationTest {
     private final OrderService orderService;
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
     private final TransactionTemplate tx;
 
     @Autowired
@@ -33,12 +39,27 @@ class OrderServiceDbIntegrationTest {
             OrderService orderService,
             OrderRepository orderRepository,
             CustomerRepository customerRepository,
+            UserRepository userRepository,
             PlatformTransactionManager txManager
     ) {
         this.orderService = orderService;
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
+        this.userRepository = userRepository;
         this.tx = new TransactionTemplate(txManager);
+    }
+
+    @BeforeEach
+    void setupTestUser() {
+        if (userRepository.findByUsername("testadmin").isEmpty()) {
+            User admin = new User();
+            admin.setId("testadmin-" + UUID.randomUUID());
+            admin.setUsername("testadmin");
+            admin.setPasswordHash("$2a$10$notUsedInTests");
+            admin.setRole(UserType.ADMIN);
+            admin.setCreatedAt(LocalDateTime.now());
+            userRepository.save(admin);
+        }
     }
 
     private String createCustomerAndReturnId() {
@@ -62,6 +83,7 @@ class OrderServiceDbIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "testadmin", authorities = "ADMIN")
     void createOrder_thenCancel_persistsStateTransitionsAndUpdatesVersion() {
         String customerId = createCustomerAndReturnId();
         String id = tx.execute(status -> orderService.createOrder(newValidRequest(customerId)).getId());
@@ -81,12 +103,12 @@ class OrderServiceDbIntegrationTest {
         assertEquals(OrderStatus.PENDING, cancelled.getCancelledFromStatus());
         assertNotNull(cancelled.getUpdatedAt());
 
-        // Version should bump on update (exact increment depends on provider, but it must be > previous).
         assertTrue(cancelled.getVersion() > versionAfterCreate, "Expected version to increment");
         assertTrue(cancelled.getUpdatedAt().isAfter(updatedAtAfterCreate) || cancelled.getUpdatedAt().isEqual(updatedAtAfterCreate));
     }
 
     @Test
+    @WithMockUser(username = "testadmin", authorities = "ADMIN")
     void createOrder_persistsDefaultsAndCanBeReloaded() {
         String customerId = createCustomerAndReturnId();
         String id = tx.execute(status -> orderService.createOrder(newValidRequest(customerId)).getId());
