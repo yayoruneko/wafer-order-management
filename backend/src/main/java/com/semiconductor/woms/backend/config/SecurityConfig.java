@@ -3,7 +3,6 @@ package com.semiconductor.woms.backend.config;
 import com.semiconductor.woms.backend.security.JwtAccessDeniedHandler;
 import com.semiconductor.woms.backend.security.JwtAuthenticationEntryPoint;
 import com.semiconductor.woms.backend.security.JwtAuthenticationFilter;
-import io.swagger.v3.oas.models.PathItem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // 使用者管理
                         .requestMatchers("/api/users/**").hasAuthority("SUPER_ADMIN")
