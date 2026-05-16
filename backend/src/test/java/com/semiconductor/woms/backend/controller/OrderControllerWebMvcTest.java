@@ -1,19 +1,23 @@
 package com.semiconductor.woms.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semiconductor.woms.backend.config.SecurityConfig;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
-import com.semiconductor.woms.backend.security.JwtAccessDeniedHandler;
-import com.semiconductor.woms.backend.security.JwtAuthenticationEntryPoint;
-import com.semiconductor.woms.backend.security.JwtUtils;
-import com.semiconductor.woms.backend.security.UserDetailsServiceImpl;
+import com.semiconductor.woms.backend.security.JwtAuthenticationFilter;
 import com.semiconductor.woms.backend.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -26,8 +30,26 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(OrderController.class)
+@WebMvcTest(
+    value = OrderController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = {SecurityConfig.class, JwtAuthenticationFilter.class}
+    )
+)
 class OrderControllerWebMvcTest {
+
+    // Replace the stateless SecurityConfig with a simple session-based one so
+    // @WithMockUser can set the SecurityContext before each request.
+    @TestConfiguration
+    static class TestSecurityConfig {
+        @Bean
+        SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
+            http.csrf(c -> c.disable())
+                .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+            return http.build();
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -38,20 +60,8 @@ class OrderControllerWebMvcTest {
     @MockBean
     private OrderService orderService;
 
-    @MockBean
-    private JwtUtils jwtUtils;
-
-    @MockBean
-    private UserDetailsServiceImpl userDetailsService;
-
-    @MockBean
-    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-    @MockBean
-    private JwtAccessDeniedHandler jwtAccessDeniedHandler;
-
     @Test
-    @WithMockUser(authorities = "ADMIN")
+    @WithMockUser
     void createOrder_returns201AndBody() throws Exception {
         OrderRequest req = new OrderRequest();
         req.setFactoryId("FAB-001");
@@ -82,7 +92,7 @@ class OrderControllerWebMvcTest {
     }
 
     @Test
-    @WithMockUser(authorities = "ADMIN")
+    @WithMockUser
     void getAllOrders_returnsList() throws Exception {
         OrderResponse a = new OrderResponse();
         a.setId("o-1");
