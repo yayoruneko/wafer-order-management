@@ -9,6 +9,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(CustomerNotFoundException.class)
+    public ResponseEntity<ApiResponse> handleCustomerNotFound(CustomerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse(404, ex.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse(400, ex.getMessage()));
+    }
+
     // 處理手動拋出的 ResponseStatusException (如: 找不到訂單時拋出的 404)
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse> handleStatusException(ResponseStatusException ex) {

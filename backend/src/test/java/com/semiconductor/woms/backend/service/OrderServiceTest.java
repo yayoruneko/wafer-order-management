@@ -23,7 +23,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -162,7 +161,7 @@ class OrderServiceTest {
         req.setCustomerId("GHOST");
         when(customerRepository.findById("GHOST")).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> orderService.createOrder(req));
+        assertThrows(IllegalArgumentException.class, () -> orderService.createOrder(req));
         verifyNoInteractions(schedulingQueueService);
     }
 

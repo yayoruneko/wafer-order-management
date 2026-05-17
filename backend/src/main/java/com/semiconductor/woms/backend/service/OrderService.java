@@ -1,5 +1,6 @@
 package com.semiconductor.woms.backend.service;
 
+import com.semiconductor.woms.backend.exception.CustomerNotFoundException;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
 import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
@@ -50,15 +51,15 @@ public class OrderService {
     public OrderResponse createOrder(OrderRequest request) {
 
         if (request.getQuantity() < 25 || request.getQuantity() > 2500) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "數量必須在 25 到 2500 之間");
+            throw new IllegalArgumentException("數量必須在 25 到 2500 之間");
         }
 
         if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "交期已過，無法新增此訂單");
+            throw new IllegalArgumentException("交期不得早於今日");
         }
 
         customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此客戶"));
+                .orElseThrow(() -> new CustomerNotFoundException("找不到此客戶 ID: " + request.getCustomerId()));
 
         Order order = new Order();
         order.setFactoryId(request.getFactoryId());
@@ -67,17 +68,16 @@ public class OrderService {
         order.setQuantity(request.getQuantity());
         order.setCustomerDueDate(request.getCustomerDueDate());
 
-        String currentUsername = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
-
-        User user = userRepository.findByUsername(currentUsername)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "當前登入用戶不存在"));
-
-        order.setCreatedBy(user.getId());
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication();
+        if (auth != null) {
+            userRepository.findByUsername(auth.getName())
+                    .ifPresent(user -> order.setCreatedBy(user.getId()));
+        }
 
         Order savedOrder = orderRepository.save(order);
 
-        // 串接後端B：把排程任務加入佇列
         schedulingQueueService.enqueue(savedOrder.getId(), SchedulingAction.SCHEDULE_ORDER);
 
         return convertToResponse(savedOrder);
@@ -157,8 +157,9 @@ public class OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到訂單 ID: " + id));
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "該訂單已經是取消狀態");
+            throw new IllegalStateException("該訂單已經是取消狀態");
         }
+        releaseSlots(order);
         order.setCancelledFromStatus(order.getStatus());
         order.setStatus(OrderStatus.CANCELLED);
         order.setRemainingQuantity(order.getQuantity());
