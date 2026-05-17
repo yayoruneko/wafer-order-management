@@ -117,6 +117,7 @@ public class OrderService {
         schedulingQueueService.enqueue(updatedOrder.getId(), SchedulingAction.RESCHEDULE_ALL);
 
         return convertToResponse(updatedOrder);
+    }
     public List<OrderSlotResponse> getOrderSlots(String orderId) {
         if (!orderRepository.existsById(orderId)) {
             throw new RuntimeException("找不到訂單 ID: " + orderId);
