@@ -61,6 +61,8 @@ export default function OrderListPage() {
     cancelSelected,
     exportSelected,
     updateOrderField,
+    error,
+    retry,
     search,
     reset,
     goPage,
@@ -115,10 +117,29 @@ export default function OrderListPage() {
 
   const cancelOrderImmediate = useCallback(
     (order) => {
+      const prevStatus = order.status
       updateOrderField(order.id, { status: 'CANCELLED' })
-      toast.success(t.toast.cancelOrderSuccess(order.id), {
-        id: `cancel-${order.id}`,
-      })
+      toast.success(
+        (to) => (
+          <span className="flex items-center gap-3">
+            {t.toast.cancelOrderSuccess(order.id)}
+            <button
+              type="button"
+              onClick={() => {
+                updateOrderField(order.id, { status: prevStatus })
+                toast.dismiss(to.id)
+                toast.success(t.toast.cancelUndone(order.id), {
+                  id: `undo-${order.id}`,
+                })
+              }}
+              className="shrink-0 rounded bg-white/15 px-2 py-0.5 text-xs font-semibold text-white transition hover:bg-white/25"
+            >
+              {t.toast.undo}
+            </button>
+          </span>
+        ),
+        { id: `cancel-${order.id}`, duration: 6000 },
+      )
     },
     [updateOrderField, t],
   )
@@ -277,6 +298,7 @@ export default function OrderListPage() {
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
+                  hint={t.orderList.columnHints.due}
                 >
                   {t.orderList.columns.due}
                 </SortableHeader>
@@ -287,6 +309,7 @@ export default function OrderListPage() {
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
+                  hint={t.orderList.columnHints.expected}
                 >
                   {t.orderList.columns.expected}
                 </SortableHeader>
@@ -306,7 +329,18 @@ export default function OrderListPage() {
               </HeaderCell>
             </div>
 
-            {orders.length === 0 ? (
+            {error ? (
+              <div className="flex h-32 flex-col items-center justify-center gap-3 text-sm text-stone-500">
+                <span>{t.orderList.loadError}</span>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className={styles.secondaryBtn}
+                >
+                  {t.orderList.retry}
+                </button>
+              </div>
+            ) : orders.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-stone-400">
                 {t.orderList.emptyResults}
               </div>

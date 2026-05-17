@@ -95,6 +95,14 @@ function CalendarToolbarBase({
           <span className={`${s.legendDot} bg-emerald-500`} />
           {t.calendar.legendNormal}
         </span>
+        <span className={s.legendItem}>
+          <span className={`${s.legendDot} bg-amber-400`} />
+          {t.calendar.legendNearFull}
+        </span>
+        <span className={s.legendItem}>
+          <span className={`${s.legendDot} bg-red-500`} />
+          {t.calendar.legendFull}
+        </span>
       </div>
     </div>
   )

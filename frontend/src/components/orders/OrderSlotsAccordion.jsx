@@ -4,6 +4,18 @@ import { getOrderSlots } from '../../api/orderApi'
 import { formatDate, formatQty, styles } from '../../styles/orderListStyles'
 import useI18n from '../../i18n/useI18n'
 
+function shareColor(pct) {
+  if (pct >= 50)
+    return { bar: 'bg-rose-500', track: 'bg-rose-100', text: 'text-rose-600' }
+  if (pct >= 25)
+    return { bar: 'bg-amber-400', track: 'bg-amber-100', text: 'text-amber-600' }
+  return {
+    bar: 'bg-emerald-500',
+    track: 'bg-emerald-100',
+    text: 'text-emerald-600',
+  }
+}
+
 function OrderSlotsAccordionBase({ order }) {
   const { t } = useI18n()
   const [slots, setSlots] = useState(null)
@@ -72,24 +84,27 @@ function OrderSlotsAccordionBase({ order }) {
             {slots.map((slot) => {
               const ratio =
                 maxQty > 0 ? Math.max(8, Math.round((slot.quantity / maxQty) * 100)) : 0
+              const pct =
+                totalQty > 0
+                  ? Math.round((slot.quantity / totalQty) * 100)
+                  : 0
+              const c = shareColor(pct)
               return (
                 <div key={slot.id ?? `${slot.slotDate}-${slot.quantity}`} className={styles.slotsRow}>
                   <span className={styles.slotsRowDate}>
-                    {formatDate(slot.slotDate)}
+                    {formatDate(slot.slotDate, t.locale)}
                   </span>
                   <span className={styles.slotsRowQty}>
                     {formatQty(slot.quantity)}
                   </span>
-                  <span className={styles.slotsRowBar}>
-                    <span className={styles.slotsBarTrack}>
+                  <span className={`${styles.slotsRowBar} ${c.text}`}>
+                    <span className={`${styles.slotsBarTrack} ${c.track}`}>
                       <span
-                        className={styles.slotsBarFill}
+                        className={`${styles.slotsBarFill} ${c.bar}`}
                         style={{ width: `${ratio}%` }}
                       />
                     </span>
-                    {totalQty > 0
-                      ? `${Math.round((slot.quantity / totalQty) * 100)}%`
-                      : '—'}
+                    {totalQty > 0 ? `${pct}%` : '—'}
                   </span>
                 </div>
               )

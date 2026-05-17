@@ -19,7 +19,7 @@ function mapOrder(o, index) {
   }
 }
 
-export const PAGE_SIZE = 6
+export const PAGE_SIZE = 20
 
 const EMPTY_DATE_RANGE = { fromIso: '', toIso: '' }
 
@@ -43,6 +43,7 @@ function compare(a, b, field) {
 export default function useOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [filters, setFilters] = useState({
     id: '',
     customer: '',
@@ -57,11 +58,13 @@ export default function useOrders() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
+    setError(false)
     try {
       const { data } = await getOrders()
       setOrders(data.map(mapOrder))
     } catch {
       setOrders([])
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -264,6 +267,8 @@ export default function useOrders() {
   return {
     orders: pageItems,
     loading,
+    error,
+    retry: fetchOrders,
     total: orders.length,
     filteredTotal: filtered.length,
     page: safePage,
