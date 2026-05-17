@@ -16,6 +16,7 @@ const zhTW = {
   nav: {
     orders: '訂單',
     calendar: '行事曆',
+    users: '使用者',
     signOut: '登出',
     switchLanguage: '切換語言',
   },
@@ -127,12 +128,6 @@ const zhTW = {
     clearAria: '清除選取',
   },
 
-  density: {
-    label: '列高密度',
-    comfortable: '舒適',
-    compact: '緊湊',
-  },
-
   stats: {
     totalOrders: '訂單總數',
     inProduction: '生產中',
@@ -154,6 +149,22 @@ const zhTW = {
     delayedDays: (d) => `延遲 ${d} 天`,
     showConflict: '展開衝突詳情',
     hideConflict: '收合衝突詳情',
+  },
+
+  orderSlots: {
+    title: '生產日期排程',
+    summary: (days, qty) => `共 ${days} 天 · ${qty} 片`,
+    columns: {
+      date: '日期',
+      qty: '數量',
+      share: '佔比',
+    },
+    empty: '此訂單尚未排入任何生產日。',
+    loading: '載入排程中…',
+    loadError: '無法載入排程，請稍後再試。',
+    regionAria: (id) => `訂單 ${id} 的生產排程`,
+    toggleShow: '展開生產日期',
+    toggleHide: '收合生產日期',
   },
 
   editOrder: {
@@ -284,6 +295,83 @@ const zhTW = {
     rescheduleAll: '重排所有訂單',
     footerHint: '點選日期以查看排定訂單 · 拖曳可重新排程',
     lastSync: (sec) => `${sec} 秒前同步`,
+    today: '今天',
+    factory: '廠區',
+    legendNormal: '正常',
+    prevMonthAria: '上個月',
+    nextMonthAria: '下個月',
+    weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+    monthFormat: { year: 'numeric', month: 'long' },
+    dateFormat: { year: 'numeric', month: 'long', day: 'numeric' },
+    stats: {
+      avgUtilization: '平均使用率',
+      fullDays: '滿載天數',
+      nearFullDays: '接近滿載天數',
+      delayedOrders: '延誤訂單',
+      flatVsPrev: '與上月持平',
+      deltaVsPrev: (d) => `${d > 0 ? '+' : ''}${d}% 較上月`,
+      noFullDays: '本月無滿載日',
+      fullDaysHint: (month, days) => `${month} ${days} 日`,
+      nearFullHint: '使用率 ≥ 90%',
+      actionNeeded: '需要處理',
+      noAction: '無需處理',
+    },
+    dayCell: {
+      today: '今天',
+      delayedTag: (n) => `${n} 筆延誤`,
+      atCapacity: '已滿載',
+      ariaOrders: (iso, n) => `${iso} 當日 ${n} 筆訂單`,
+      ariaOrdersDelayed: (iso, n, d) =>
+        `${iso} 當日 ${n} 筆訂單，含 ${d} 筆延誤`,
+    },
+    popover: {
+      title: (date) => `當日排程 — ${date}`,
+      subtitle: (count, capacity, orders) =>
+        `產能 ${count} / ${capacity}，共 ${orders} 筆訂單`,
+      delayedSuffix: (n) => `（${n} 筆延誤）`,
+      empty: '此日無排程訂單',
+      close: '關閉',
+      closeAria: '關閉',
+      delayPill: (d) => `延後 ${d} 天`,
+      onTrack: '準時',
+      customerDue: '客戶交期',
+      expectedDone: '預計完成',
+      dailyOutput: (qty) => `當日生產：${qty} 片`,
+    },
+  },
+
+  userAdmin: {
+    title: '使用者管理',
+    subtitle: '管理使用者角色與權限',
+    columns: {
+      username: '帳號',
+      displayName: '姓名',
+      role: '角色',
+      createdAt: '建立時間',
+      actions: '操作',
+    },
+    roleLabels: {
+      SUPER_ADMIN: '超級管理員',
+      ADMIN: '管理員',
+      VIEWER: '檢視者',
+    },
+    actions: {
+      promote: '升級為管理員',
+      demote: '降級為檢視者',
+      pending: '處理中…',
+    },
+    badgeSelf: '本人',
+    superLocked: '超級管理員不可變更',
+    loadError: '無法載入使用者，請稍後再試。',
+    forbiddenTitle: '無存取權限',
+    forbiddenBody: '只有超級管理員可以變更使用者角色。',
+    backToOrders: '返回訂單',
+    toast: {
+      promoteSuccess: (name) => `${name} 已升級為管理員`,
+      demoteSuccess: (name) => `${name} 已降級為檢視者`,
+      updateError: '更新失敗，請稍後再試',
+    },
+    empty: '目前沒有其他使用者。',
   },
 }
 

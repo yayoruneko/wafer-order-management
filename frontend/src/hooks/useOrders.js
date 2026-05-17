@@ -54,7 +54,6 @@ export default function useOrders() {
   const [sortField, setSortField] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  const [density, setDensity] = useState('comfortable')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -288,8 +287,6 @@ export default function useOrders() {
     cancelSelected,
     exportSelected,
     updateOrderField,
-    density,
-    setDensity,
     search,
     reset,
     goPage,

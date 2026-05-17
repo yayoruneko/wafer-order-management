@@ -16,6 +16,7 @@ const en = {
   nav: {
     orders: 'Orders',
     calendar: 'Calendar',
+    users: 'Users',
     signOut: 'Sign out',
     switchLanguage: 'Switch language',
   },
@@ -131,12 +132,6 @@ const en = {
     clearAria: 'Clear selection',
   },
 
-  density: {
-    label: 'Row density',
-    comfortable: 'Comfortable',
-    compact: 'Compact',
-  },
-
   stats: {
     totalOrders: 'Total orders',
     inProduction: 'In production',
@@ -158,6 +153,22 @@ const en = {
     delayedDays: (d) => `Delayed ${d}d`,
     showConflict: 'Show conflict details',
     hideConflict: 'Hide conflict details',
+  },
+
+  orderSlots: {
+    title: 'Production schedule',
+    summary: (days, qty) => `${days} day${days === 1 ? '' : 's'} · ${qty} wafers`,
+    columns: {
+      date: 'Date',
+      qty: 'Quantity',
+      share: 'Share',
+    },
+    empty: 'No production slots assigned yet.',
+    loading: 'Loading schedule…',
+    loadError: 'Could not load schedule. Please try again.',
+    regionAria: (id) => `Production schedule for ${id}`,
+    toggleShow: 'Show production dates',
+    toggleHide: 'Hide production dates',
   },
 
   editOrder: {
@@ -295,6 +306,83 @@ const en = {
     footerHint:
       'Click any day to view scheduled orders · Drag-and-drop to reschedule',
     lastSync: (sec) => `Last sync ${sec} sec ago`,
+    today: 'Today',
+    factory: 'Factory',
+    legendNormal: 'Normal',
+    prevMonthAria: 'Previous month',
+    nextMonthAria: 'Next month',
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    monthFormat: { year: 'numeric', month: 'long' },
+    dateFormat: { year: 'numeric', month: 'short', day: 'numeric' },
+    stats: {
+      avgUtilization: 'Avg utilization',
+      fullDays: 'Full days',
+      nearFullDays: 'Near-full days',
+      delayedOrders: 'Delayed orders',
+      flatVsPrev: 'Flat vs last month',
+      deltaVsPrev: (d) => `${d > 0 ? '+' : ''}${d}% vs last month`,
+      noFullDays: 'No full days this month',
+      fullDaysHint: (month, days) => `${month} ${days}`,
+      nearFullHint: '≥ 90% load',
+      actionNeeded: 'action needed',
+      noAction: 'no action',
+    },
+    dayCell: {
+      today: 'Today',
+      delayedTag: (n) => `${n} DELAYED`,
+      atCapacity: 'AT CAPACITY',
+      ariaOrders: (iso, n) => `${iso}: ${n} orders`,
+      ariaOrdersDelayed: (iso, n, d) =>
+        `${iso}: ${n} orders, ${d} delayed`,
+    },
+    popover: {
+      title: (date) => `Day schedule — ${date}`,
+      subtitle: (count, capacity, orders) =>
+        `Capacity ${count} / ${capacity} · ${orders} orders`,
+      delayedSuffix: (n) => ` (${n} delayed)`,
+      empty: 'No orders scheduled this day',
+      close: 'Close',
+      closeAria: 'Close',
+      delayPill: (d) => `+${d}d delayed`,
+      onTrack: 'On track',
+      customerDue: 'Customer due',
+      expectedDone: 'Expected',
+      dailyOutput: (qty) => `Daily output: ${qty} wafers`,
+    },
+  },
+
+  userAdmin: {
+    title: 'User management',
+    subtitle: 'Manage user roles and permissions',
+    columns: {
+      username: 'Username',
+      displayName: 'Name',
+      role: 'Role',
+      createdAt: 'Created',
+      actions: 'Actions',
+    },
+    roleLabels: {
+      SUPER_ADMIN: 'Super admin',
+      ADMIN: 'Admin',
+      VIEWER: 'Viewer',
+    },
+    actions: {
+      promote: 'Promote to admin',
+      demote: 'Demote to viewer',
+      pending: 'Working…',
+    },
+    badgeSelf: 'You',
+    superLocked: 'Super admin role cannot be changed',
+    loadError: 'Could not load users. Please try again.',
+    forbiddenTitle: 'No access',
+    forbiddenBody: 'Only super admins can change user roles.',
+    backToOrders: 'Back to orders',
+    toast: {
+      promoteSuccess: (name) => `${name} promoted to admin`,
+      demoteSuccess: (name) => `${name} demoted to viewer`,
+      updateError: 'Failed to update user. Please try again.',
+    },
+    empty: 'No other users to manage.',
   },
 }
 

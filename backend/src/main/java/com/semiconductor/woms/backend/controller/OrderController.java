@@ -4,6 +4,8 @@ import com.semiconductor.woms.backend.dto.OrderHistoryResponse;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
 import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
+import com.semiconductor.woms.backend.dto.OrderSlotResponse;
+import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.service.OrderService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +55,12 @@ public class OrderController {
     public ResponseEntity<Void> cancelOrder(@PathVariable String id) {
         orderService.cancelOrder(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // GET /api/orders/{id}/slots - 取得訂單被分配的生產日期與數量
+    @GetMapping("/{id}/slots")
+    public ResponseEntity<List<OrderSlotResponse>> getOrderSlots(@PathVariable String id) {
+        return ResponseEntity.ok(orderService.getOrderSlots(id));
     }
 
 //    @GetMapping("/{id}/history")

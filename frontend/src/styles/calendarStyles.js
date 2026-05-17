@@ -126,6 +126,8 @@ export const calendarStyles = {
   popoverTitleWrap: 'flex items-center gap-3',
   popoverIconWrap:
     'inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-600',
+  popoverIconWrapNeutral:
+    'inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-700',
   popoverIcon: 'h-5 w-5',
   popoverTitle: 'text-[16px] font-semibold text-stone-900',
   popoverSubtitle: 'mt-0.5 text-[12px] text-stone-500',
@@ -145,6 +147,8 @@ export const calendarStyles = {
   orderDelayPill:
     'inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600',
   orderDelayPillIcon: 'h-3 w-3',
+  orderOnTrackPill:
+    'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700',
   orderDateGrid: 'mt-3 grid grid-cols-2 gap-3 rounded-md bg-stone-50 px-3 py-2.5',
   orderDateLabel: 'text-[11px] font-medium uppercase tracking-wider text-stone-400',
   orderDateValue: 'mt-0.5 text-[13px] font-medium text-stone-800',

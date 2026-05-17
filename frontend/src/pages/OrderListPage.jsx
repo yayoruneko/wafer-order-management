@@ -6,22 +6,18 @@ import TopNav from '../components/TopNav'
 import { HeaderCell } from '../components/orders/Cell'
 import OrderRow from '../components/orders/OrderRow'
 import OrderConflictAccordion from '../components/orders/OrderConflictAccordion'
+import OrderSlotsAccordion from '../components/orders/OrderSlotsAccordion'
 import OrderFilters from '../components/orders/OrderFilters'
 import PageBtn from '../components/orders/PageBtn'
 import StatsCards from '../components/orders/StatsCards'
 import FilterTabs from '../components/orders/FilterTabs'
 import BulkActionBar from '../components/orders/BulkActionBar'
-import DensityToggle from '../components/orders/DensityToggle'
 import SortableHeader from '../components/orders/SortableHeader'
 import Checkbox from '../components/orders/Checkbox'
 import CancelOrderDialog from '../components/orders/CancelOrderDialog'
 import useOrders from '../hooks/useOrders'
 import useI18n from '../i18n/useI18n'
-import {
-  colWidths,
-  densityHeader,
-  styles,
-} from '../styles/orderListStyles'
+import { colWidths, styles } from '../styles/orderListStyles'
 
 function buildPageWindow(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -65,8 +61,6 @@ export default function OrderListPage() {
     cancelSelected,
     exportSelected,
     updateOrderField,
-    density,
-    setDensity,
     search,
     reset,
     goPage,
@@ -224,17 +218,11 @@ export default function OrderListPage() {
             onExportSelected={handleExportSelected}
             onClear={clearSelection}
           />
-        ) : (
-          <div className="flex items-center justify-end">
-            <DensityToggle value={density} onChange={setDensity} />
-          </div>
-        )}
+        ) : null}
 
         <div className={styles.tableWrap}>
           <div className={styles.tableBox}>
-            <div
-              className={`${styles.tableHeader} ${densityHeader[density]}`}
-            >
+            <div className={`${styles.tableHeader} h-12`}>
               <HeaderCell className={`${colWidths.select} justify-center`}>
                 <Checkbox
                   checked={pageAllSelected}
@@ -324,28 +312,33 @@ export default function OrderListPage() {
               </div>
             ) : (
               orders.map((o) => {
-                const isDelayed =
-                  o.delayedDays > 0 && o.status !== 'CANCELLED'
+                const isCancelled = o.status === 'CANCELLED'
+                const isDelayed = o.delayedDays > 0 && !isCancelled
                 const isExpanded = expandedIds.has(o.id)
+                const canExpand = !isCancelled
                 return (
                   <div key={o.id} id={`conflict-${o.id}`}>
                     <OrderRow
                       order={o}
-                      density={density}
                       selected={selectedIds.has(o.id)}
                       onToggleSelect={toggleSelect}
                       onEdit={handleEdit}
                       onCancel={handleCancel}
                       onUpdateField={updateOrderField}
                       expanded={isExpanded}
-                      onToggleExpand={isDelayed ? toggleExpand : undefined}
+                      onToggleExpand={canExpand ? toggleExpand : undefined}
                     />
-                    {isDelayed && isExpanded ? (
-                      <OrderConflictAccordion
-                        order={o}
-                        onReviewDelay={handleReviewDelay}
-                        onNotifyCustomer={handleNotifyCustomer}
-                      />
+                    {canExpand && isExpanded ? (
+                      <div id={`slots-${o.id}`}>
+                        <OrderSlotsAccordion order={o} />
+                        {isDelayed ? (
+                          <OrderConflictAccordion
+                            order={o}
+                            onReviewDelay={handleReviewDelay}
+                            onNotifyCustomer={handleNotifyCustomer}
+                          />
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 )

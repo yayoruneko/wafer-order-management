@@ -13,4 +13,5 @@ public class SlotOrderInfo {
     private Integer delayDays;
     private Integer qty;
     private String scheduleWarning;
+    private Boolean isDelayed;
 }
