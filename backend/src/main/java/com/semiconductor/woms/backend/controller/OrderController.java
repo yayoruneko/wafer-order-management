@@ -48,7 +48,6 @@ public class OrderController {
         orderService.cancelOrder(id);
         return ResponseEntity.ok(new ApiResponse(200,  "訂單 " + id + " 已成功取消"));
     }
-}
 
     // GET /api/orders/{id}/slots - 取得訂單被分配的生產日期與數量
     @GetMapping("/{id}/slots")
