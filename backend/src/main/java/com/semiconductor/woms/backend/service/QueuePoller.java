@@ -20,31 +20,45 @@ public class QueuePoller {
     private final SchedulingQueueRepository queueRepository;
     private final SchedulerService schedulerService;
 
+    /**
+     * 每次只取一筆 PENDING 任務執行，確保任務序列化。
+     * fixedDelay 保證上一次 poll() 結束後才會再次觸發，不會並發執行。
+     * 若有任務卡在 PROCESSING（例如 app 重啟），優先跳過以免重複執行。
+     */
     @Scheduled(fixedDelay = 5000)
     public void poll() {
-        List<SchedulingQueue> tasks = queueRepository
-                .findByStatusOrderByPriorityAscCreatedAtAsc(QueueStatus.PENDING);
-
-        for (SchedulingQueue task : tasks) {
-            task.setStatus(QueueStatus.PROCESSING);
-            queueRepository.save(task);
-
-            try {
-                if (task.getAction() == SchedulingAction.SCHEDULE_ORDER) {
-                    schedulerService.scheduleOrder(task.getOrderId());
-                } else if (task.getAction() == SchedulingAction.RESCHEDULE_ALL) {
-                    schedulerService.rescheduleAll();
-                }
-                task.setStatus(QueueStatus.DONE);
-                task.setProcessedAt(LocalDateTime.now());
-                log.info("Processed queue task {} for order {}", task.getId(), task.getOrderId());
-            } catch (Exception e) {
-                task.setStatus(QueueStatus.FAILED);
-                task.setProcessedAt(LocalDateTime.now());
-                log.error("Failed to process queue task {}: {}", task.getId(), e.getMessage());
-            }
-
-            queueRepository.save(task);
+        // 若有任務仍在 PROCESSING，等下一輪再試（防止 app 重啟造成重複執行）
+        List<SchedulingQueue> processing = queueRepository
+                .findByStatusOrderByPriorityAscCreatedAtAsc(QueueStatus.PROCESSING);
+        if (!processing.isEmpty()) {
+            log.warn("Found {} task(s) still in PROCESSING state, skipping this poll cycle", processing.size());
+            return;
         }
+
+        // 每次只取優先度最高的那一筆
+        List<SchedulingQueue> pending = queueRepository
+                .findByStatusOrderByPriorityAscCreatedAtAsc(QueueStatus.PENDING);
+        if (pending.isEmpty()) return;
+
+        SchedulingQueue task = pending.get(0);
+        task.setStatus(QueueStatus.PROCESSING);
+        task.setProcessedAt(LocalDateTime.now());
+        queueRepository.save(task);
+
+        try {
+            if (task.getAction() == SchedulingAction.SCHEDULE_ORDER) {
+                schedulerService.scheduleOrder(task.getOrderId());
+            } else if (task.getAction() == SchedulingAction.RESCHEDULE_ALL
+                    || task.getAction() == SchedulingAction.CANCEL_ORDER) {
+                schedulerService.rescheduleAll();
+            }
+            task.setStatus(QueueStatus.DONE);
+            log.info("Done: task={} action={} order={}", task.getId(), task.getAction(), task.getOrderId());
+        } catch (Exception e) {
+            task.setStatus(QueueStatus.FAILED);
+            log.error("Failed: task={} action={} error={}", task.getId(), task.getAction(), e.getMessage());
+        }
+
+        queueRepository.save(task);
     }
 }

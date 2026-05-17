@@ -2,6 +2,7 @@ package com.semiconductor.woms.backend;
 
 import com.semiconductor.woms.backend.model.DailyCapacityUsage;
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.DailyCapacityUsageRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
@@ -11,16 +12,20 @@ import com.semiconductor.woms.backend.service.SchedulerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +53,8 @@ class SchedulerServiceTest {
         mockOrder.setCustomerDueDate(LocalDate.now().plusDays(10));
         mockOrder.setStatus(OrderStatus.PENDING);
     }
+
+    // ── scheduleOrder (Week 1，保留原本測試) ───────────────────────────────────
 
     @Test
     void scheduleOrder_quantityFitsInToday_producesSingleSlotAndZerosRemaining() {
@@ -142,8 +149,6 @@ class SchedulerServiceTest {
         assertNotNull(mockOrder.getScheduleWarning());
     }
 
-    // ── New test cases ────────────────────────────────────────────────────────
-
     @Test
     void scheduleOrder_throwsWhenOrderNotFound() {
         when(orderRepo.findById("no-such-id")).thenReturn(Optional.empty());
@@ -182,7 +187,6 @@ class SchedulerServiceTest {
 
     @Test
     void scheduleOrder_calculatesDelayDaysCorrectly() {
-        // Due date 2 days ago → delayDays should be >= 2
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
         mockOrder.setCustomerDueDate(LocalDate.now().minusDays(2));
@@ -194,12 +198,12 @@ class SchedulerServiceTest {
         ScheduleResult result = schedulerService.scheduleOrder("order-001");
 
         assertTrue(result.isDelayed());
-        assertTrue(mockOrder.getDelayDays() >= 2, "Expected delayDays >= 2, got: " + mockOrder.getDelayDays());
+        assertTrue(mockOrder.getDelayDays() >= 2,
+                "Expected delayDays >= 2, got: " + mockOrder.getDelayDays());
     }
 
     @Test
     void scheduleOrder_exactFitIntoAvailableCapacity_producesSingleSlot() {
-        // available = 10000 - 9500 = 500; order qty = 500 → exact fit, no spill to next day
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
 
@@ -242,5 +246,238 @@ class SchedulerServiceTest {
         int available = schedulerService.getAvailableCapacity("factory-001", LocalDate.now());
 
         assertEquals(0, available);
+    }
+
+    // ── releaseCapacity (Week 2) ──────────────────────────────────────────────
+
+    @Test
+    void releaseCapacity_decrementsExistingUsage_whenQuantityPartial() {
+        DailyCapacityUsage usage = new DailyCapacityUsage();
+        usage.setUsedQuantity(800);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(usage));
+
+        schedulerService.releaseCapacity("factory-001", LocalDate.now(), 300);
+
+        ArgumentCaptor<DailyCapacityUsage> captor = ArgumentCaptor.forClass(DailyCapacityUsage.class);
+        verify(capacityRepo).save(captor.capture());
+        assertEquals(500, captor.getValue().getUsedQuantity());
+        verify(capacityRepo, never()).delete(any());
+    }
+
+    @Test
+    void releaseCapacity_deletesRecord_whenUsageDropsToZero() {
+        DailyCapacityUsage usage = new DailyCapacityUsage();
+        usage.setUsedQuantity(300);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(usage));
+
+        schedulerService.releaseCapacity("factory-001", LocalDate.now(), 300);
+
+        verify(capacityRepo).delete(usage);
+        verify(capacityRepo, never()).save(any());
+    }
+
+    @Test
+    void releaseCapacity_deletesRecord_whenReleaseExceedsUsage() {
+        // 防止 usedQuantity 被設為負數
+        DailyCapacityUsage usage = new DailyCapacityUsage();
+        usage.setUsedQuantity(100);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(usage));
+
+        schedulerService.releaseCapacity("factory-001", LocalDate.now(), 500);
+
+        verify(capacityRepo).delete(usage);
+        verify(capacityRepo, never()).save(any());
+    }
+
+    @Test
+    void releaseCapacity_doesNothing_whenNoUsageRecord() {
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.empty());
+
+        schedulerService.releaseCapacity("factory-001", LocalDate.now(), 500);
+
+        verify(capacityRepo, never()).save(any());
+        verify(capacityRepo, never()).delete(any());
+    }
+
+    // ── rescheduleAll (Week 2) ────────────────────────────────────────────────
+
+    @Test
+    void rescheduleAll_doesNothing_whenNoOrdersExist() {
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of());
+
+        schedulerService.rescheduleAll();
+
+        verify(slotRepo, never()).findByOrderId(any());
+        verify(slotRepo, never()).deleteByOrderId(any());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    void rescheduleAll_releasesSlots_andResetsScheduledOrderToPending() {
+        // 用 spy 阻擋 scheduleOrder()，專注驗證「釋放階段」
+        SchedulerServiceImpl spy = Mockito.spy(
+                new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
+        doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
+
+        Order scheduledOrder = buildOrder("ord-s", OrderStatus.SCHEDULED, 500);
+
+        ProductionSlot slot = new ProductionSlot();
+        slot.setFactoryId("factory-001");
+        slot.setSlotDate(LocalDate.now().plusDays(2));
+        slot.setQuantity(500);
+
+        DailyCapacityUsage usage = new DailyCapacityUsage();
+        usage.setUsedQuantity(500);
+
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(scheduledOrder));
+        when(slotRepo.findByOrderId("ord-s")).thenReturn(List.of(slot));
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now().plusDays(2)))
+                .thenReturn(Optional.of(usage));
+
+        spy.rescheduleAll();
+
+        // slot 被刪除
+        verify(slotRepo).deleteByOrderId("ord-s");
+
+        // 訂單欄位被重置
+        assertEquals(OrderStatus.PENDING, scheduledOrder.getStatus());
+        assertEquals(500, scheduledOrder.getRemainingQuantity());
+        assertNull(scheduledOrder.getLastSlotDate());
+        assertNull(scheduledOrder.getExpectedDueDate());
+        assertFalse(scheduledOrder.getIsDelayed());
+        assertEquals(0, scheduledOrder.getDelayDays());
+        assertNull(scheduledOrder.getScheduleWarning());
+    }
+
+    @Test
+    void rescheduleAll_doesNotReleaseSlots_forPendingOrders() {
+        SchedulerServiceImpl spy = Mockito.spy(
+                new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
+        doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
+
+        Order pendingOrder = buildOrder("ord-p", OrderStatus.PENDING, 500);
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(pendingOrder));
+
+        spy.rescheduleAll();
+
+        // PENDING 訂單沒有 slot 要釋放，不應呼叫這兩個方法
+        verify(slotRepo, never()).findByOrderId(any());
+        verify(slotRepo, never()).deleteByOrderId(any());
+    }
+
+    @Test
+    void rescheduleAll_schedulesOrdersInEddAscendingOrder() {
+        SchedulerServiceImpl spy = Mockito.spy(
+                new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
+        doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
+
+        // orderLate 交期較晚，orderEarly 交期較早
+        Order orderLate = buildOrder("ord-late", OrderStatus.PENDING, 100);
+        orderLate.setCustomerDueDate(LocalDate.now().plusDays(10));
+        orderLate.setCreatedAt(LocalDateTime.now().minusHours(2));
+
+        Order orderEarly = buildOrder("ord-early", OrderStatus.PENDING, 100);
+        orderEarly.setCustomerDueDate(LocalDate.now().plusDays(3));
+        orderEarly.setCreatedAt(LocalDateTime.now().minusHours(1));
+
+        // 故意以「晚交期在前」的順序回傳，確認排序邏輯有作用
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(orderLate, orderEarly));
+
+        spy.rescheduleAll();
+
+        InOrder inOrder = inOrder(spy);
+        inOrder.verify(spy).scheduleOrder("ord-early");  // 交期早的先排
+        inOrder.verify(spy).scheduleOrder("ord-late");
+    }
+
+    @Test
+    void rescheduleAll_sameDueDate_usesCreatedAtFifo() {
+        SchedulerServiceImpl spy = Mockito.spy(
+                new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
+        doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
+
+        LocalDate sameDate = LocalDate.now().plusDays(5);
+
+        Order orderFirst = buildOrder("ord-first", OrderStatus.PENDING, 100);
+        orderFirst.setCustomerDueDate(sameDate);
+        orderFirst.setCreatedAt(LocalDateTime.now().minusHours(3));  // 較早建立
+
+        Order orderSecond = buildOrder("ord-second", OrderStatus.PENDING, 100);
+        orderSecond.setCustomerDueDate(sameDate);
+        orderSecond.setCreatedAt(LocalDateTime.now().minusHours(1)); // 較晚建立
+
+        // 故意以「較晚在前」的順序回傳，確認 FIFO 排序有作用
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(orderSecond, orderFirst));
+
+        spy.rescheduleAll();
+
+        InOrder inOrder = inOrder(spy);
+        inOrder.verify(spy).scheduleOrder("ord-first");   // createdAt 早的先排
+        inOrder.verify(spy).scheduleOrder("ord-second");
+    }
+
+    @Test
+    void rescheduleAll_callsScheduleOrder_forEachOrder() {
+        SchedulerServiceImpl spy = Mockito.spy(
+                new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
+        doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
+
+        Order p1 = buildOrder("ord-1", OrderStatus.PENDING, 100);
+        p1.setCreatedAt(LocalDateTime.now());
+        Order p2 = buildOrder("ord-2", OrderStatus.PENDING, 200);
+        p2.setCreatedAt(LocalDateTime.now());
+
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(p1, p2));
+
+        spy.rescheduleAll();
+
+        // 兩筆訂單都必須被排程
+        verify(spy).scheduleOrder("ord-1");
+        verify(spy).scheduleOrder("ord-2");
+    }
+
+    @Test
+    void rescheduleAll_pendingOrder_isScheduledAfterRelease() {
+        // 整合驗證：一筆 PENDING 訂單在全局重排後成功排程
+        Order pendingOrder = buildOrder("ord-p", OrderStatus.PENDING, 100);
+        pendingOrder.setCustomerDueDate(LocalDate.now().plusDays(5));
+
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(pendingOrder));
+        when(orderRepo.findById("ord-p")).thenReturn(Optional.of(pendingOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        schedulerService.rescheduleAll();
+
+        assertEquals(OrderStatus.SCHEDULED, pendingOrder.getStatus());
+        assertEquals(0, pendingOrder.getRemainingQuantity());
+        assertNotNull(pendingOrder.getLastSlotDate());
+    }
+
+    // ── 輔助方法 ───────────────────────────────────────────────────────────────
+
+    private Order buildOrder(String id, OrderStatus status, int quantity) {
+        Order o = new Order();
+        o.setId(id);
+        o.setFactoryId("factory-001");
+        o.setCustomerId("cust-001");
+        o.setCreatedBy("user-001");
+        o.setQuantity(quantity);
+        o.setRemainingQuantity(status == OrderStatus.SCHEDULED ? 0 : quantity);
+        o.setStatus(status);
+        o.setCustomerDueDate(LocalDate.now().plusDays(7));
+        o.setIsDelayed(false);
+        o.setDelayDays(0);
+        o.setVersion(0);
+        o.setCreatedAt(LocalDateTime.now().minusMinutes(10));
+        o.setUpdatedAt(LocalDateTime.now().minusMinutes(10));
+        return o;
     }
 }

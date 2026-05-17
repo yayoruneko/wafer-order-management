@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ChevronRight } from 'lucide-react'
 import useI18n from '../../i18n/useI18n'
 import { calendarStyles as s, loadStyles } from '../../styles/calendarStyles'
 
@@ -28,10 +28,11 @@ function CalendarDayCellBase({ cell, onOpen }) {
   return (
     <div
       className={`${s.cellOuter} ${accentClass} ${cellBg} ${
-        clickable ? s.cellOuterClickable : ''
+        clickable ? `${s.cellOuterClickable} group` : ''
       }`}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
+      title={clickable ? t.calendar.dayCell.viewHint : undefined}
       aria-label={
         clickable
           ? cell.hasDelay
@@ -81,7 +82,7 @@ function CalendarDayCellBase({ cell, onOpen }) {
                 : `${s.cellCount} ${ls.countText}`
             }
           >
-            {formatCount(cell.count)} / {(cell.capacity / 1000).toLocaleString('en-US')}k
+            {formatCount(cell.count)} / {(cell.capacity / 1000).toLocaleString(t.locale)}k
           </div>
           {cell.load === 'full' && !muted ? (
             <div className={s.cellTag}>
@@ -91,6 +92,13 @@ function CalendarDayCellBase({ cell, onOpen }) {
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {clickable ? (
+        <ChevronRight
+          className="absolute bottom-2 right-1.5 h-3.5 w-3.5 text-stone-400 opacity-40 transition-opacity group-hover:opacity-90"
+          aria-hidden="true"
+        />
       ) : null}
 
       <div className={s.cellBar}>

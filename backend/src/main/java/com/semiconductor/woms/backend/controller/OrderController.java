@@ -3,6 +3,7 @@ package com.semiconductor.woms.backend.controller;
 import com.semiconductor.woms.backend.dto.ApiResponse;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
 import com.semiconductor.woms.backend.dto.OrderSlotResponse;
 import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.service.OrderService;
