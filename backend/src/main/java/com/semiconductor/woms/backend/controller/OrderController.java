@@ -38,7 +38,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse> updateOrder(@PathVariable String id, @RequestBody OrderRequest request) {
+    public ResponseEntity<ApiResponse> updateOrder(@PathVariable String id, @RequestBody OrderUpdateRequest request) {
         orderService.updateOrder(id, request);
         return ResponseEntity.ok(new ApiResponse(200,  "訂單 " + id + " 已成功更新"));
     }

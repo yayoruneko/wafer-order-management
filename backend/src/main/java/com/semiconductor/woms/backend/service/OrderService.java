@@ -97,24 +97,38 @@ public class OrderService {
 
 
     @Transactional
-    public OrderResponse updateOrder(String id, OrderRequest request) {
+    public OrderResponse updateOrder(String id, OrderUpdateRequest request) {
 
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到欲更新的訂單 ID: " + id));
 
-        if (request.getQuantity() < 25 || request.getQuantity() > 2500) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "數量必須在 25 到 2500 之間");
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
+            throw new IllegalStateException("無法更新已取消或已完成的訂單");
         }
+
+        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("交期不得早於今日");
+        }
+
+        List<ProductionSlot> existingSlots = productionSlotRepository.findByOrderId(id);
+        for (ProductionSlot slot : existingSlots) {
+            schedulerService.releaseCapacity(slot.getFactoryId(), slot.getSlotDate(), slot.getQuantity());
+        }
+        productionSlotRepository.deleteByOrderId(id);
 
         order.setQuantity(request.getQuantity());
         order.setCustomerDueDate(request.getCustomerDueDate());
-        order.setFactoryId(request.getFactoryId());
-        order.setWaferTypeId(request.getWaferTypeId());
+        order.setRemainingQuantity(request.getQuantity());
+        order.setStatus(OrderStatus.PENDING);
+        order.setLastSlotDate(null);
+        order.setExpectedDueDate(null);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setScheduleWarning(null);
 
         Order updatedOrder = orderRepository.save(order);
 
-        // 如果數量或交期變了，通常需要重新排程
-        schedulingQueueService.enqueue(updatedOrder.getId(), SchedulingAction.RESCHEDULE_ALL);
+        schedulingQueueService.enqueueRescheduleAll();
 
         return convertToResponse(updatedOrder);
     }
