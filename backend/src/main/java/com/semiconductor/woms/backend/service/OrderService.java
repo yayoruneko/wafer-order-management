@@ -159,39 +159,6 @@ public class OrderService {
         schedulingQueueService.enqueueRescheduleAll();
     }
 
-    @Transactional
-    public OrderResponse updateOrder(String id, OrderUpdateRequest request) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
-
-        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
-            throw new IllegalStateException("已取消或已完成的訂單無法修改");
-        }
-        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("交期已過，無法修改");
-        }
-
-        // 釋放原有 slot，歸還產能
-        releaseSlots(order);
-
-        // 更新訂單資料，重置排程狀態
-        order.setQuantity(request.getQuantity());
-        order.setCustomerDueDate(request.getCustomerDueDate());
-        order.setRemainingQuantity(request.getQuantity());
-        order.setStatus(OrderStatus.PENDING);
-        order.setLastSlotDate(null);
-        order.setExpectedDueDate(null);
-        order.setIsDelayed(false);
-        order.setDelayDays(0);
-        order.setScheduleWarning(null);
-        Order saved = orderRepository.save(order);
-
-        // 觸發全局重排
-        schedulingQueueService.enqueueRescheduleAll();
-
-        return convertToResponse(saved);
-    }
-
     // 釋放訂單的所有 ProductionSlot，並歸還 DailyCapacityUsage
     private void releaseSlots(Order order) {
         List<ProductionSlot> slots = productionSlotRepository.findByOrderId(order.getId());
