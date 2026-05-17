@@ -23,8 +23,8 @@ export const statusBadge = {
 
 export const colWidths = {
   select: 'w-[44px]',
-  id: 'w-[110px]',
-  customer: 'w-[200px]',
+  id: 'w-[170px]',
+  customer: 'w-[210px]',
   qty: 'w-[90px]',
   status: 'w-[150px]',
   due: 'w-[120px]',
@@ -86,7 +86,7 @@ export const styles = {
   // Table
   tableWrap: '',
   tableBox:
-    'overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
+    'mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
   tableHeader: 'flex items-center bg-[#EFEAE0]/70 border-b border-stone-200/70',
   headerCellText:
     'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500',
@@ -172,16 +172,16 @@ export const styles = {
     'text-[11px] font-semibold uppercase tracking-wider text-stone-500',
   slotsSummary: 'text-[12px] text-stone-500',
   slotsTableHead:
-    'grid grid-cols-[160px_120px_1fr] gap-3 border-b border-stone-200 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400',
+    'grid grid-cols-3 gap-3 border-b border-stone-200 pb-1 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400',
   slotsRow:
-    'grid grid-cols-[160px_120px_1fr] gap-3 border-b border-stone-100 py-1.5 last:border-b-0 text-[13px] text-stone-800',
+    'grid grid-cols-3 items-center gap-3 border-b border-stone-100 py-1.5 last:border-b-0 text-center text-[13px] text-stone-800',
   slotsRowDate: 'font-medium text-stone-900',
   slotsRowQty: 'font-mono text-stone-800',
   slotsRowBar:
-    'flex items-center gap-2 text-[11px] text-stone-500',
+    'flex items-center justify-center gap-2 text-[11px] font-semibold',
   slotsBarTrack:
-    'h-1.5 flex-1 max-w-[180px] overflow-hidden rounded-full bg-stone-200',
-  slotsBarFill: 'h-full rounded-full bg-stone-700',
+    'h-1.5 w-[120px] overflow-hidden rounded-full',
+  slotsBarFill: 'h-full rounded-full',
   slotsEmpty: 'text-[12px] text-stone-400',
   slotsLoading:
     'inline-flex items-center gap-2 text-[12px] text-stone-400',
@@ -206,6 +206,8 @@ export const styles = {
     'h-7 w-full rounded border border-stone-900 bg-white px-2 text-[13px] text-stone-900 outline-none',
   inlineCellHover:
     'cursor-text rounded px-1 -mx-1 hover:bg-stone-100 transition',
+  inlineEditable:
+    'cursor-text rounded px-1 -mx-1 border-b border-dotted border-stone-300 hover:bg-stone-100 hover:border-stone-400 transition',
 
   // Filter inputs
   filterInput:
@@ -269,11 +271,11 @@ export const dateRangePickerStyles = {
 export const dimmedText = (cancelled) =>
   cancelled ? 'text-stone-400' : 'text-stone-900'
 
-export function formatDate(iso) {
+export function formatDate(iso, locale = 'en-US') {
   if (!iso) return '—'
   const d = new Date(iso + 'T00:00:00')
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

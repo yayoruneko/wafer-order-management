@@ -1,8 +1,12 @@
 import { memo } from 'react'
 import { styles } from '../../styles/orderListStyles'
 
-function CellBase({ children, className = '' }) {
-  return <div className={`${styles.cellBase} ${className}`}>{children}</div>
+function CellBase({ children, className = '', ...rest }) {
+  return (
+    <div className={`${styles.cellBase} ${className}`} {...rest}>
+      {children}
+    </div>
+  )
 }
 
 function HeaderCellBase({ children, className = '' }) {

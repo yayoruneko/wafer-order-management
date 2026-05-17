@@ -42,6 +42,14 @@ const en = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     copyright: (year) => `© ${year} WOMS`,
+    demoOnly: 'Not available in the demo environment',
+    demo: {
+      title: 'Demo accounts',
+      note: 'Password is always "demo" — click to sign in instantly',
+      super: 'Super admin',
+      admin: 'Admin',
+      viewer: 'Viewer',
+    },
   },
 
   toast: {
@@ -55,8 +63,10 @@ const en = {
     exportSuccess: (n) => `Exported ${n} orders to CSV`,
     exportEmpty: 'Select orders to export first',
     genericError: 'Something went wrong. Please try again.',
-    notifiedCustomer: (customer, id) => `Notified ${customer} (${id})`,
+    notifiedCustomer: (customer, id) => `(demo) Notified ${customer} (${id})`,
     rescheduleAllTriggered: 'Global rescheduling triggered',
+    undo: 'Undo',
+    cancelUndone: (id) => (id ? `Order ${id} restored` : 'Cancellation undone'),
   },
 
   cancelDialog: {
@@ -113,6 +123,14 @@ const en = {
     pageAria: (n) => `Page ${n}`,
     prevPageAria: 'Previous page',
     nextPageAria: 'Next page',
+    columnHints: {
+      due: 'Date the customer requested delivery (customer commitment)',
+      expected: 'Completion date the system calculated from capacity scheduling',
+    },
+    editHint: 'Double-click to edit',
+    expandHint: 'Click this row to expand the production schedule',
+    loadError: 'Could not load orders. Check your connection and retry.',
+    retry: 'Retry',
   },
 
   filters: {
@@ -309,6 +327,8 @@ const en = {
     today: 'Today',
     factory: 'Factory',
     legendNormal: 'Normal',
+    legendNearFull: 'Near-full',
+    legendFull: 'Full',
     prevMonthAria: 'Previous month',
     nextMonthAria: 'Next month',
     weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
@@ -329,6 +349,7 @@ const en = {
     },
     dayCell: {
       today: 'Today',
+      viewHint: 'Click to view orders',
       delayedTag: (n) => `${n} DELAYED`,
       atCapacity: 'AT CAPACITY',
       ariaOrders: (iso, n) => `${iso}: ${n} orders`,

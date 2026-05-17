@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { styles } from '../../styles/orderListStyles'
+import useI18n from '../../i18n/useI18n'
 
 function InlineEditCellBase({
   value,
@@ -9,6 +10,7 @@ function InlineEditCellBase({
   textClassName = '',
   onCommit,
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef(null)
@@ -27,12 +29,12 @@ function InlineEditCellBase({
   if (!editing) {
     return (
       <span
-        className={`${textClassName} ${styles.inlineCellHover}`}
+        className={`${textClassName} ${styles.inlineEditable}`}
         onDoubleClick={() => {
           setDraft(String(value ?? ''))
           setEditing(true)
         }}
-        title="Double-click to edit"
+        title={t.orderList.editHint}
       >
         {display ?? value ?? '—'}
       </span>

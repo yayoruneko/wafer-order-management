@@ -41,6 +41,14 @@ const zhTW = {
     showPassword: '顯示密碼',
     hidePassword: '隱藏密碼',
     copyright: (year) => `© ${year} WOMS`,
+    demoOnly: '示範環境不提供此功能',
+    demo: {
+      title: '示範帳號',
+      note: '密碼一律為 demo,點選即可快速登入',
+      super: '超級管理員',
+      admin: '管理員',
+      viewer: '檢視者',
+    },
   },
 
   toast: {
@@ -53,8 +61,10 @@ const zhTW = {
     exportSuccess: (n) => `已匯出 ${n} 筆訂單為 CSV`,
     exportEmpty: '請先選擇要匯出的訂單',
     genericError: '操作失敗，請稍後再試',
-    notifiedCustomer: (customer, id) => `已通知 ${customer}（${id}）`,
+    notifiedCustomer: (customer, id) => `（示範）已通知 ${customer}（${id}）`,
     rescheduleAllTriggered: '已觸發全局重排排程',
+    undo: '復原',
+    cancelUndone: (id) => (id ? `已復原訂單 ${id}` : '已復原取消'),
   },
 
   cancelDialog: {
@@ -109,6 +119,14 @@ const zhTW = {
     pageAria: (n) => `第 ${n} 頁`,
     prevPageAria: '上一頁',
     nextPageAria: '下一頁',
+    columnHints: {
+      due: '客戶要求的交貨日期（客戶承諾值）',
+      expected: '系統依產能排程計算出的預計完成日期',
+    },
+    editHint: '雙擊即可編輯',
+    expandHint: '點選此列展開生產排程',
+    loadError: '無法載入訂單，請檢查連線後重試。',
+    retry: '重新載入',
   },
 
   filters: {
@@ -298,6 +316,8 @@ const zhTW = {
     today: '今天',
     factory: '廠區',
     legendNormal: '正常',
+    legendNearFull: '接近滿載',
+    legendFull: '滿載',
     prevMonthAria: '上個月',
     nextMonthAria: '下個月',
     weekdays: ['一', '二', '三', '四', '五', '六', '日'],
@@ -318,6 +338,7 @@ const zhTW = {
     },
     dayCell: {
       today: '今天',
+      viewHint: '點選查看當日訂單',
       delayedTag: (n) => `${n} 筆延誤`,
       atCapacity: '已滿載',
       ariaOrders: (iso, n) => `${iso} 當日 ${n} 筆訂單`,

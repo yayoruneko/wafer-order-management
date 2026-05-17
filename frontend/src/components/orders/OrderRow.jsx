@@ -42,18 +42,28 @@ function OrderRowBase({
       : styles.cellText
 
   const rowClass = `${delayed ? styles.rowDelayed : styles.row} h-14 ${
-    selected ? styles.rowSelected : ''
-  }`
+    expandable ? 'cursor-pointer' : ''
+  } ${selected ? styles.rowSelected : ''}`
+
+  const handleRowClick = (e) => {
+    if (!expandable) return
+    if (e.target.closest('button, input, label, a, [data-no-expand]')) return
+    onToggleExpand?.(order.id)
+  }
 
   return (
-    <div className={rowClass}>
+    <div
+      className={rowClass}
+      onClick={handleRowClick}
+      title={expandable ? t.orderList.expandHint : undefined}
+    >
       {delayed && <div className={styles.rowAccentDelayed} />}
 
-      <Cell className={`${colWidths.select} justify-center`}>
+      <Cell className={`${colWidths.select} justify-center`} data-no-expand>
         <Checkbox
           checked={!!selected}
           onChange={() => onToggleSelect?.(order.id)}
-          ariaLabel={`Select ${order.id}`}
+          ariaLabel={t.orderList.selectOrder(order.id)}
         />
       </Cell>
 
@@ -103,7 +113,7 @@ function OrderRowBase({
         </div>
       </Cell>
 
-      <Cell className={colWidths.qty}>
+      <Cell className={colWidths.qty} data-no-expand>
         <InlineEditCell
           value={order.qty}
           display={formatQty(order.qty)}
@@ -123,10 +133,10 @@ function OrderRowBase({
         <StatusPill status={order.status} />
       </Cell>
 
-      <Cell className={colWidths.due}>
+      <Cell className={colWidths.due} data-no-expand>
         <InlineEditCell
           value={order.dueDate ?? ''}
-          display={formatDate(order.dueDate)}
+          display={formatDate(order.dueDate, t.locale)}
           type="date"
           disabled={cancelled}
           textClassName={baseText}
@@ -136,7 +146,9 @@ function OrderRowBase({
 
       <Cell className={colWidths.exp}>
         <span className={expectedClass}>
-          {cancelled ? formatDate(order.dueDate) : formatDate(order.expected)}
+          {cancelled
+            ? formatDate(order.dueDate, t.locale)
+            : formatDate(order.expected, t.locale)}
         </span>
       </Cell>
 
@@ -155,12 +167,12 @@ function OrderRowBase({
         )}
       </Cell>
 
-      <Cell className={`${colWidths.actions} gap-1`}>
+      <Cell className={`${colWidths.actions} gap-1`} data-no-expand>
         <button
           className={styles.iconBtn}
           onClick={() => onEdit?.(order)}
-          aria-label={`Edit order ${order.id}`}
-          title={`Edit order ${order.id}`}
+          aria-label={t.orderList.editOrderAria(order.id)}
+          title={t.orderList.editOrderAria(order.id)}
         >
           <Pencil className={styles.pencilIcon} />
         </button>
@@ -168,8 +180,8 @@ function OrderRowBase({
           <button
             className={styles.iconBtnDanger}
             onClick={() => onCancel?.(order)}
-            aria-label={`Cancel order ${order.id}`}
-            title={`Cancel order ${order.id}`}
+            aria-label={t.orderList.cancelOrderAria(order.id)}
+            title={t.orderList.cancelOrderAria(order.id)}
           >
             <X className={styles.closeIcon} />
           </button>

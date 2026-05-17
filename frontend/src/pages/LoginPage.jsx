@@ -28,6 +28,33 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const redirectTo = location.state?.from?.pathname || '/'
+  const isDemo = import.meta.env.VITE_USE_MOCK_AUTH !== 'false'
+
+  const quickLogin = async (uname) => {
+    setError('')
+    setSubmitting(true)
+    try {
+      const resolved = await login({
+        username: uname,
+        password: 'demo',
+        remember,
+      })
+      toast.success(
+        t.toast.loginSuccess(resolved?.displayName || resolved?.username),
+        { id: 'login' },
+      )
+      navigate(redirectTo, { replace: true })
+    } catch (err) {
+      const status = err?.response?.status
+      setError(
+        status === 401 || status === 400
+          ? t.login.invalidCredentials
+          : t.login.serviceUnavailable,
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     if (isAuthenticated) navigate(redirectTo, { replace: true })
@@ -172,6 +199,8 @@ export default function LoginPage() {
               </label>
               <a
                 href="#"
+                title={t.login.demoOnly}
+                onClick={(e) => e.preventDefault()}
                 className="text-sm font-medium text-stone-700 underline underline-offset-2 hover:text-stone-900"
               >
                 {t.login.forgotPassword}
@@ -208,11 +237,44 @@ export default function LoginPage() {
 
             <button
               type="button"
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-sm font-medium text-stone-800 transition hover:bg-stone-50"
+              disabled
+              title={t.login.demoOnly}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-sm font-medium text-stone-800 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Lock className="h-4 w-4" />
               {t.login.continueSso}
             </button>
+
+            {isDemo ? (
+              <div className="mt-1 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
+                <div className="text-[12px] font-semibold text-stone-700">
+                  {t.login.demo.title}
+                </div>
+                <div className="mt-0.5 text-[11px] text-stone-500">
+                  {t.login.demo.note}
+                </div>
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  {[
+                    { u: 'super', label: t.login.demo.super },
+                    { u: 'admin', label: t.login.demo.admin },
+                    { u: 'viewer', label: t.login.demo.viewer },
+                  ].map(({ u, label }) => (
+                    <button
+                      key={u}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => quickLogin(u)}
+                      className="inline-flex h-9 flex-col items-center justify-center rounded-md border border-stone-300 bg-white px-2 text-[12px] font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {label}
+                      <span className="font-mono text-[10px] text-stone-400">
+                        {u}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </form>
         </div>
       </main>
@@ -223,6 +285,8 @@ export default function LoginPage() {
           {t.login.copyright(new Date().getFullYear())} · {t.login.needHelp}{' '}
           <a
             href="#"
+            title={t.login.demoOnly}
+            onClick={(e) => e.preventDefault()}
             className="text-stone-600 underline underline-offset-2 hover:text-stone-900"
           >
             {t.login.contactIt}
