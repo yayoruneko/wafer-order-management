@@ -2,13 +2,16 @@ package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.dto.OrderSlotResponse;
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.SchedulingAction;
 import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
 import com.semiconductor.woms.backend.repository.UserRepository;
+import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,6 +39,8 @@ public class OrderService {
     private SchedulingQueueService schedulingQueueService;
 
 
+    @Autowired
+    private ProductionSlotRepository productionSlotRepository;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
@@ -107,6 +113,22 @@ public class OrderService {
         schedulingQueueService.enqueue(updatedOrder.getId(), SchedulingAction.RESCHEDULE_ALL);
 
         return convertToResponse(updatedOrder);
+    public List<OrderSlotResponse> getOrderSlots(String orderId) {
+        if (!orderRepository.existsById(orderId)) {
+            throw new RuntimeException("找不到訂單 ID: " + orderId);
+        }
+        return productionSlotRepository.findByOrderId(orderId).stream()
+                .sorted(Comparator.comparing(ProductionSlot::getSlotDate))
+                .map(slot -> {
+                    OrderSlotResponse res = new OrderSlotResponse();
+                    res.setId(slot.getId());
+                    res.setOrderId(slot.getOrderId());
+                    res.setFactoryId(slot.getFactoryId());
+                    res.setSlotDate(slot.getSlotDate());
+                    res.setQuantity(slot.getQuantity());
+                    return res;
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional

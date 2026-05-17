@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import useClickOutside from '../../hooks/useClickOutside'
+import useI18n from '../../i18n/useI18n'
 import { calendarStyles as s } from '../../styles/calendarStyles'
 
 function CalendarToolbarBase({
@@ -8,12 +9,11 @@ function CalendarToolbarBase({
   factories,
   factoryId,
   onChangeFactory,
-  view,
-  onChangeView,
   onPrevMonth,
   onNextMonth,
   onToday,
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(open, () => setOpen(false))
   const factory = factories.find((f) => f.id === factoryId) ?? factories[0]
@@ -25,7 +25,7 @@ function CalendarToolbarBase({
           type="button"
           className={s.navBtn}
           onClick={onPrevMonth}
-          aria-label="Previous month"
+          aria-label={t.calendar.prevMonthAria}
         >
           <ChevronLeft className={s.navIcon} />
         </button>
@@ -34,17 +34,17 @@ function CalendarToolbarBase({
           type="button"
           className={s.navBtn}
           onClick={onNextMonth}
-          aria-label="Next month"
+          aria-label={t.calendar.nextMonthAria}
         >
           <ChevronRight className={s.navIcon} />
         </button>
         <button type="button" className={s.todayBtn} onClick={onToday}>
-          Today
+          {t.calendar.today}
         </button>
       </div>
 
       <div className={s.toolbarMid}>
-        <span className={s.factoryLabel}>Factory</span>
+        <span className={s.factoryLabel}>{t.calendar.factory}</span>
         <div className={s.factoryWrap} ref={ref}>
           <button
             type="button"
@@ -91,23 +91,9 @@ function CalendarToolbarBase({
       </div>
 
       <div className={s.toolbarRight}>
-        <div className={s.viewSwitch} role="tablist">
-          {['month', 'week', 'list'].map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={view === v}
-              className={view === v ? s.viewBtnActive : s.viewBtn}
-              onClick={() => onChangeView(v)}
-            >
-              {v === 'month' ? 'Month' : v === 'week' ? 'Week' : 'List'}
-            </button>
-          ))}
-        </div>
         <span className={s.legendItem}>
           <span className={`${s.legendDot} bg-emerald-500`} />
-          Normal
+          {t.calendar.legendNormal}
         </span>
       </div>
     </div>

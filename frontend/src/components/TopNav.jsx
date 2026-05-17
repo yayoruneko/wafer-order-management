@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, ListChecks, CalendarDays } from 'lucide-react'
+import { LogOut, ListChecks, CalendarDays, Users } from 'lucide-react'
 import useAuth from '../auth/useAuth'
 import useI18n from '../i18n/useI18n'
 import LangSwitcher from './LangSwitcher'
@@ -37,6 +37,17 @@ function TopNavBase() {
           <CalendarDays className="h-4 w-4" />
           {t.nav.calendar}
         </NavLink>
+        {user?.role === 'SUPER_ADMIN' ? (
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) =>
+              `${tabBase} ${isActive ? tabActive : tabIdle}`
+            }
+          >
+            <Users className="h-4 w-4" />
+            {t.nav.users}
+          </NavLink>
+        ) : null}
       </nav>
 
       <div className="flex items-center gap-3">

@@ -18,6 +18,13 @@ function buildMockJwt(payload) {
   ].join('.')
 }
 
+function resolveMockRole(username) {
+  const u = (username || '').trim().toLowerCase()
+  if (u === 'super' || u === 'superadmin' || u === 'root') return 'SUPER_ADMIN'
+  if (u === 'admin') return 'ADMIN'
+  return 'VIEWER'
+}
+
 async function mockLogin({ username, password }) {
   await new Promise((r) => setTimeout(r, 500))
   if (password !== 'demo') {
@@ -26,10 +33,11 @@ async function mockLogin({ username, password }) {
     throw err
   }
   const now = Math.floor(Date.now() / 1000)
+  const role = resolveMockRole(username)
   const accessToken = buildMockJwt({
     sub: username,
     name: username,
-    role: 'planner',
+    role,
     iat: now,
     exp: now + 60 * 60,
   })
@@ -42,7 +50,7 @@ async function mockLogin({ username, password }) {
   return {
     accessToken,
     refreshToken,
-    user: { username, displayName: username, role: 'planner' },
+    user: { username, displayName: username, role },
   }
 }
 
