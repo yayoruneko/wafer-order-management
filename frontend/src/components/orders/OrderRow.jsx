@@ -9,7 +9,6 @@ import Checkbox from './Checkbox'
 import useI18n from '../../i18n/useI18n'
 import {
   colWidths,
-  densityRow,
   formatDate,
   formatQty,
   styles,
@@ -17,7 +16,6 @@ import {
 
 function OrderRowBase({
   order,
-  density,
   selected,
   onToggleSelect,
   onEdit,
@@ -43,7 +41,7 @@ function OrderRowBase({
       ? styles.cellRed
       : styles.cellText
 
-  const rowClass = `${delayed ? styles.rowDelayed : styles.row} ${densityRow[density]} ${
+  const rowClass = `${delayed ? styles.rowDelayed : styles.row} h-14 ${
     selected ? styles.rowSelected : ''
   }`
 

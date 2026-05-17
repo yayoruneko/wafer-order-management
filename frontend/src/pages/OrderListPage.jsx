@@ -12,17 +12,12 @@ import PageBtn from '../components/orders/PageBtn'
 import StatsCards from '../components/orders/StatsCards'
 import FilterTabs from '../components/orders/FilterTabs'
 import BulkActionBar from '../components/orders/BulkActionBar'
-import DensityToggle from '../components/orders/DensityToggle'
 import SortableHeader from '../components/orders/SortableHeader'
 import Checkbox from '../components/orders/Checkbox'
 import CancelOrderDialog from '../components/orders/CancelOrderDialog'
 import useOrders from '../hooks/useOrders'
 import useI18n from '../i18n/useI18n'
-import {
-  colWidths,
-  densityHeader,
-  styles,
-} from '../styles/orderListStyles'
+import { colWidths, styles } from '../styles/orderListStyles'
 
 function buildPageWindow(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -66,8 +61,6 @@ export default function OrderListPage() {
     cancelSelected,
     exportSelected,
     updateOrderField,
-    density,
-    setDensity,
     search,
     reset,
     goPage,
@@ -225,17 +218,11 @@ export default function OrderListPage() {
             onExportSelected={handleExportSelected}
             onClear={clearSelection}
           />
-        ) : (
-          <div className="flex items-center justify-end">
-            <DensityToggle value={density} onChange={setDensity} />
-          </div>
-        )}
+        ) : null}
 
         <div className={styles.tableWrap}>
           <div className={styles.tableBox}>
-            <div
-              className={`${styles.tableHeader} ${densityHeader[density]}`}
-            >
+            <div className={`${styles.tableHeader} h-12`}>
               <HeaderCell className={`${colWidths.select} justify-center`}>
                 <Checkbox
                   checked={pageAllSelected}
@@ -333,7 +320,6 @@ export default function OrderListPage() {
                   <div key={o.id} id={`conflict-${o.id}`}>
                     <OrderRow
                       order={o}
-                      density={density}
                       selected={selectedIds.has(o.id)}
                       onToggleSelect={toggleSelect}
                       onEdit={handleEdit}

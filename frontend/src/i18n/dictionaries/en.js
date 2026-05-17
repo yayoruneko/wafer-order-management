@@ -132,12 +132,6 @@ const en = {
     clearAria: 'Clear selection',
   },
 
-  density: {
-    label: 'Row density',
-    comfortable: 'Comfortable',
-    compact: 'Compact',
-  },
-
   stats: {
     totalOrders: 'Total orders',
     inProduction: 'In production',
@@ -312,6 +306,49 @@ const en = {
     footerHint:
       'Click any day to view scheduled orders · Drag-and-drop to reschedule',
     lastSync: (sec) => `Last sync ${sec} sec ago`,
+    today: 'Today',
+    factory: 'Factory',
+    legendNormal: 'Normal',
+    prevMonthAria: 'Previous month',
+    nextMonthAria: 'Next month',
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    monthFormat: { year: 'numeric', month: 'long' },
+    dateFormat: { year: 'numeric', month: 'short', day: 'numeric' },
+    stats: {
+      avgUtilization: 'Avg utilization',
+      fullDays: 'Full days',
+      nearFullDays: 'Near-full days',
+      delayedOrders: 'Delayed orders',
+      flatVsPrev: 'Flat vs last month',
+      deltaVsPrev: (d) => `${d > 0 ? '+' : ''}${d}% vs last month`,
+      noFullDays: 'No full days this month',
+      fullDaysHint: (month, days) => `${month} ${days}`,
+      nearFullHint: '≥ 90% load',
+      actionNeeded: 'action needed',
+      noAction: 'no action',
+    },
+    dayCell: {
+      today: 'Today',
+      delayedTag: (n) => `${n} DELAYED`,
+      atCapacity: 'AT CAPACITY',
+      ariaOrders: (iso, n) => `${iso}: ${n} orders`,
+      ariaOrdersDelayed: (iso, n, d) =>
+        `${iso}: ${n} orders, ${d} delayed`,
+    },
+    popover: {
+      title: (date) => `Day schedule — ${date}`,
+      subtitle: (count, capacity, orders) =>
+        `Capacity ${count} / ${capacity} · ${orders} orders`,
+      delayedSuffix: (n) => ` (${n} delayed)`,
+      empty: 'No orders scheduled this day',
+      close: 'Close',
+      closeAria: 'Close',
+      delayPill: (d) => `+${d}d delayed`,
+      onTrack: 'On track',
+      customerDue: 'Customer due',
+      expectedDone: 'Expected',
+      dailyOutput: (qty) => `Daily output: ${qty} wafers`,
+    },
   },
 
   userAdmin: {

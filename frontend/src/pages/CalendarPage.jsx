@@ -13,14 +13,12 @@ import { calendarStyles as s } from '../styles/calendarStyles'
 export default function CalendarPage() {
   const { t } = useI18n()
   const {
-    monthLabel,
+    monthAnchor,
     monthGrid,
     monthSummary,
     factories,
     factoryId,
     setFactoryId,
-    view,
-    setView,
     selectedDay,
     openDay,
     closeDay,
@@ -28,6 +26,11 @@ export default function CalendarPage() {
     goToNextMonth,
     goToToday,
   } = useProductionCalendar()
+
+  const monthLabel = monthAnchor.toLocaleDateString(
+    t.locale,
+    t.calendar.monthFormat,
+  )
 
   const handleReschedule = useCallback(() => {
     toast.success(t.toast.rescheduleAllTriggered, { id: 'reschedule-all' })
@@ -61,8 +64,6 @@ export default function CalendarPage() {
           factories={factories}
           factoryId={factoryId}
           onChangeFactory={setFactoryId}
-          view={view}
-          onChangeView={setView}
           onPrevMonth={goToPrevMonth}
           onNextMonth={goToNextMonth}
           onToday={goToToday}

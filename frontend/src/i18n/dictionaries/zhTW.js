@@ -128,12 +128,6 @@ const zhTW = {
     clearAria: '清除選取',
   },
 
-  density: {
-    label: '列高密度',
-    comfortable: '舒適',
-    compact: '緊湊',
-  },
-
   stats: {
     totalOrders: '訂單總數',
     inProduction: '生產中',
@@ -301,6 +295,49 @@ const zhTW = {
     rescheduleAll: '重排所有訂單',
     footerHint: '點選日期以查看排定訂單 · 拖曳可重新排程',
     lastSync: (sec) => `${sec} 秒前同步`,
+    today: '今天',
+    factory: '廠區',
+    legendNormal: '正常',
+    prevMonthAria: '上個月',
+    nextMonthAria: '下個月',
+    weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+    monthFormat: { year: 'numeric', month: 'long' },
+    dateFormat: { year: 'numeric', month: 'long', day: 'numeric' },
+    stats: {
+      avgUtilization: '平均使用率',
+      fullDays: '滿載天數',
+      nearFullDays: '接近滿載天數',
+      delayedOrders: '延誤訂單',
+      flatVsPrev: '與上月持平',
+      deltaVsPrev: (d) => `${d > 0 ? '+' : ''}${d}% 較上月`,
+      noFullDays: '本月無滿載日',
+      fullDaysHint: (month, days) => `${month} ${days} 日`,
+      nearFullHint: '使用率 ≥ 90%',
+      actionNeeded: '需要處理',
+      noAction: '無需處理',
+    },
+    dayCell: {
+      today: '今天',
+      delayedTag: (n) => `${n} 筆延誤`,
+      atCapacity: '已滿載',
+      ariaOrders: (iso, n) => `${iso} 當日 ${n} 筆訂單`,
+      ariaOrdersDelayed: (iso, n, d) =>
+        `${iso} 當日 ${n} 筆訂單，含 ${d} 筆延誤`,
+    },
+    popover: {
+      title: (date) => `當日排程 — ${date}`,
+      subtitle: (count, capacity, orders) =>
+        `產能 ${count} / ${capacity}，共 ${orders} 筆訂單`,
+      delayedSuffix: (n) => `（${n} 筆延誤）`,
+      empty: '此日無排程訂單',
+      close: '關閉',
+      closeAria: '關閉',
+      delayPill: (d) => `延後 ${d} 天`,
+      onTrack: '準時',
+      customerDue: '客戶交期',
+      expectedDone: '預計完成',
+      dailyOutput: (qty) => `當日生產：${qty} 片`,
+    },
   },
 
   userAdmin: {

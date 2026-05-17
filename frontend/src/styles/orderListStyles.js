@@ -33,16 +33,6 @@ export const colWidths = {
   actions: 'w-[100px]',
 }
 
-export const densityRow = {
-  comfortable: 'h-14',
-  compact: 'h-10',
-}
-
-export const densityHeader = {
-  comfortable: 'h-12',
-  compact: 'h-10',
-}
-
 export const styles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
   shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
@@ -92,14 +82,6 @@ export const styles = {
     'inline-flex h-8 items-center gap-1.5 rounded-md bg-white/10 px-3 text-xs font-medium text-white hover:bg-white/20 transition',
   bulkBtnDanger:
     'inline-flex h-8 items-center gap-1.5 rounded-md bg-red-500 px-3 text-xs font-medium text-white hover:bg-red-600 transition',
-
-  // Density toggle
-  densityWrap:
-    'inline-flex items-center rounded-md border border-stone-300 bg-white p-0.5',
-  densityBtn:
-    'inline-flex h-7 items-center rounded px-2.5 text-xs font-medium text-stone-500 hover:text-stone-800 transition',
-  densityBtnActive:
-    'inline-flex h-7 items-center rounded bg-stone-900 px-2.5 text-xs font-semibold text-white',
 
   // Table
   tableWrap: '',

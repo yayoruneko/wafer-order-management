@@ -48,13 +48,6 @@ function buildMonthGrid(monthStart) {
   return cells
 }
 
-const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function fullDayLabel(iso) {
-  const [y, m, d] = iso.split('-')
-  return `${SHORT_MONTH[Number(m) - 1]} ${Number(d)}, ${y}`
-}
-
 export default function useProductionCalendar({ initialDate, today } = {}) {
   const todayDate = useMemo(() => {
     const d = today ? new Date(today) : new Date()
@@ -66,7 +59,6 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
     startOfMonth(initialDate ?? todayDate),
   )
   const [factoryId, setFactoryId] = useState(FACTORIES[0].id)
-  const [view, setView] = useState('month')
   const [selectedISO, setSelectedISO] = useState(null)
   const [calendarData, setCalendarData] = useState({})
 
@@ -167,20 +159,16 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
 
   return {
     monthAnchor,
-    monthLabel: `${SHORT_MONTH[monthAnchor.getMonth()]} ${monthAnchor.getFullYear()}`,
     monthGrid,
     monthSummary,
     factories: FACTORIES,
     factoryId,
     setFactoryId,
-    view,
-    setView,
     selectedDay,
     openDay,
     closeDay,
     goToPrevMonth,
     goToNextMonth,
     goToToday,
-    formatFullDay: fullDayLabel,
   }
 }

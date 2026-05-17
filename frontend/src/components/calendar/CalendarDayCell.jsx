@@ -1,12 +1,11 @@
 import { memo } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import useI18n from '../../i18n/useI18n'
 import { calendarStyles as s, loadStyles } from '../../styles/calendarStyles'
 
-function formatCount(n) {
-  return n.toLocaleString('en-US')
-}
-
 function CalendarDayCellBase({ cell, onOpen }) {
+  const { t } = useI18n()
+  const formatCount = (n) => n.toLocaleString(t.locale)
   const ls = loadStyles[cell.load]
   const clickable = cell.hasOrders
   const muted = !cell.inMonth
@@ -36,8 +35,12 @@ function CalendarDayCellBase({ cell, onOpen }) {
       aria-label={
         clickable
           ? cell.hasDelay
-            ? `${cell.iso} 當日 ${cell.orders.length} 筆訂單，含 ${cell.delayedOrders.length} 筆延誤`
-            : `${cell.iso} 當日 ${cell.orders.length} 筆訂單`
+            ? t.calendar.dayCell.ariaOrdersDelayed(
+                cell.iso,
+                cell.orders.length,
+                cell.delayedOrders.length,
+              )
+            : t.calendar.dayCell.ariaOrders(cell.iso, cell.orders.length)
           : undefined
       }
       onClick={handleClick}
@@ -47,7 +50,7 @@ function CalendarDayCellBase({ cell, onOpen }) {
         {cell.isToday ? (
           <div className="flex items-center gap-2">
             <span className={s.cellTodayPill}>{cell.day}</span>
-            <span className={s.cellTodayLabel}>Today</span>
+            <span className={s.cellTodayLabel}>{t.calendar.dayCell.today}</span>
           </div>
         ) : (
           <span
@@ -83,8 +86,8 @@ function CalendarDayCellBase({ cell, onOpen }) {
           {cell.load === 'full' && !muted ? (
             <div className={s.cellTag}>
               {cell.hasDelay
-                ? `${cell.delayedOrders.length} DELAYED`
-                : 'AT CAPACITY'}
+                ? t.calendar.dayCell.delayedTag(cell.delayedOrders.length)
+                : t.calendar.dayCell.atCapacity}
             </div>
           ) : null}
         </div>

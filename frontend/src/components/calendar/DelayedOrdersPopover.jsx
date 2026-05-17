@@ -1,14 +1,17 @@
 import { memo } from 'react'
 import { AlertTriangle, CalendarDays, Info, X, ArrowRight } from 'lucide-react'
 import Modal from '../createOrder/Modal'
+import useI18n from '../../i18n/useI18n'
 import { calendarStyles as s } from '../../styles/calendarStyles'
 
-const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
-  return `${SHORT_MONTH[Number(m) - 1]} ${Number(d)}, ${y}`
+function useFormatDate() {
+  const { t } = useI18n()
+  return (iso) => {
+    if (!iso) return '—'
+    const d = new Date(`${iso}T00:00:00`)
+    if (Number.isNaN(d.getTime())) return iso
+    return d.toLocaleDateString(t.locale, t.calendar.dateFormat)
+  }
 }
 
 function customerInitials(name) {
@@ -17,6 +20,9 @@ function customerInitials(name) {
 }
 
 function OrderRow({ order }) {
+  const { t } = useI18n()
+  const p = t.calendar.popover
+  const formatDate = useFormatDate()
   const delayed = !!order.isDelayed
   return (
     <div className={s.orderCard}>
@@ -36,21 +42,21 @@ function OrderRow({ order }) {
         {delayed ? (
           <span className={s.orderDelayPill}>
             <AlertTriangle className={s.orderDelayPillIcon} />
-            延後 {order.delayDays} 天
+            {p.delayPill(order.delayDays)}
           </span>
         ) : (
-          <span className={s.orderOnTrackPill}>準時</span>
+          <span className={s.orderOnTrackPill}>{p.onTrack}</span>
         )}
       </div>
 
       <div className={s.orderDateGrid}>
         <div>
-          <div className={s.orderDateLabel}>客戶交期</div>
+          <div className={s.orderDateLabel}>{p.customerDue}</div>
           <div className={s.orderDateValue}>{formatDate(order.requestedDate)}</div>
         </div>
         <div>
           <div className={s.orderDateLabel}>
-            <ArrowRight className="inline h-3 w-3" /> 預計完成
+            <ArrowRight className="inline h-3 w-3" /> {p.expectedDone}
           </div>
           <div className={delayed ? s.orderDateValueDanger : s.orderDateValue}>
             {formatDate(order.rescheduledDate)}
@@ -59,7 +65,7 @@ function OrderRow({ order }) {
       </div>
 
       <div className={s.orderQty}>
-        當日生產：{order.qty.toLocaleString('en-US')} wafers
+        {p.dailyOutput(order.qty.toLocaleString(t.locale))}
       </div>
 
       {delayed && order.scheduleWarning ? (
@@ -73,6 +79,9 @@ function OrderRow({ order }) {
 }
 
 function DelayedOrdersPopoverBase({ open, day, onClose }) {
+  const { t } = useI18n()
+  const p = t.calendar.popover
+  const formatDate = useFormatDate()
   if (!open || !day) return null
 
   const orders = day.orders ?? []
@@ -93,11 +102,14 @@ function DelayedOrdersPopoverBase({ open, day, onClose }) {
             )}
           </span>
           <div>
-            <div className={s.popoverTitle}>當日排程 — {formatDate(day.iso)}</div>
+            <div className={s.popoverTitle}>{p.title(formatDate(day.iso))}</div>
             <div className={s.popoverSubtitle}>
-              產能 {day.count.toLocaleString('en-US')} / {day.capacity.toLocaleString('en-US')}
-              ，共 {orders.length} 筆訂單
-              {hasDelay ? `（${delayedCount} 筆延誤）` : ''}
+              {p.subtitle(
+                day.count.toLocaleString(t.locale),
+                day.capacity.toLocaleString(t.locale),
+                orders.length,
+              )}
+              {hasDelay ? p.delayedSuffix(delayedCount) : ''}
             </div>
           </div>
         </div>
@@ -105,7 +117,7 @@ function DelayedOrdersPopoverBase({ open, day, onClose }) {
           type="button"
           className={s.popoverCloseBtn}
           onClick={onClose}
-          aria-label="Close"
+          aria-label={p.closeAria}
         >
           <X className={s.popoverCloseIcon} />
         </button>
@@ -114,7 +126,7 @@ function DelayedOrdersPopoverBase({ open, day, onClose }) {
       <div className={s.popoverBody}>
         {orders.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-stone-400">
-            此日無排程訂單
+            {p.empty}
           </div>
         ) : (
           orders.map((order) => (
@@ -125,7 +137,7 @@ function DelayedOrdersPopoverBase({ open, day, onClose }) {
 
       <div className={s.popoverFooter}>
         <button type="button" className={s.popoverGhostBtn} onClick={onClose}>
-          關閉
+          {p.close}
         </button>
       </div>
     </Modal>
