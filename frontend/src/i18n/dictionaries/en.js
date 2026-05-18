@@ -70,6 +70,7 @@ const en = {
   },
 
   cancelDialog: {
+    // IN_PRODUCTION warning variant
     titleSingle: 'This order is in production!',
     titleBulk: 'Selection includes orders in production!',
     subtitleSingle:
@@ -78,10 +79,16 @@ const en = {
       `${n} orders are in production. Cancelling will release used capacity`,
     body: 'Cancelling will release used capacity, affect other scheduled orders, and cannot be undone. Continue?',
     affectedHeading: 'Affected in-production orders',
+    affectedHeadingGeneral: 'Orders to be cancelled',
     moreCount: (n) => `…and ${n} more`,
     bulkBreakdown: (inProd, total) =>
       `${inProd} of ${total} selected orders are in production`,
     irreversibleNote: 'This action cannot be undone.',
+    // General confirmation variant
+    titleSingleConfirm: 'Confirm order cancellation?',
+    subtitleSingleConfirm: 'This action cannot be undone. Continue?',
+    titleBulkConfirm: (n) => `Cancel ${n} orders?`,
+    subtitleBulkConfirm: (n) => `${n} selected orders will all be cancelled`,
     cancelBtn: 'Back',
     confirmBtn: 'Confirm cancel order',
     confirmBtnBulk: (n) => `Confirm cancel ${n} orders`,
@@ -95,7 +102,7 @@ const en = {
     createOrder: 'Create order',
     tabs: {
       all: 'All',
-      delayed: 'Delayed only',
+      delayed: 'Delayed',
       in_production: 'In production',
       mine: 'My orders',
     },
@@ -105,7 +112,7 @@ const en = {
       qty: 'Qty',
       status: 'Status',
       due: 'Due Date',
-      expected: 'Expected',
+      expected: 'Completion Date',
       schedule: 'Schedule',
       actions: 'Actions',
     },
@@ -141,12 +148,13 @@ const en = {
     prevMonthAria: 'Previous month',
     nextMonthAria: 'Next month',
     dowShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    resetFilters: 'Reset filters',
   },
 
   bulk: {
     selected: (n) => `${n} ${n === 1 ? 'order' : 'orders'} selected`,
     exportSelected: 'Export selected',
-    cancelSelected: 'Cancel selected',
+    cancelSelected: 'Cancel selected orders',
     clearAria: 'Clear selection',
   },
 
@@ -224,7 +232,7 @@ const en = {
       `Production typically requires ${min}–${max} weeks lead time`,
 
     scheduleWarning:
-      'Note: changing quantity or due date will release the original factory capacity and trigger a global reschedule, which may shift the final scheduled date.',
+      'Note: changing quantity or due date will trigger rescheduling, which may shift the final delivery date.',
 
     cancelBtn: 'Cancel',
     reloadBtn: 'Reload data',

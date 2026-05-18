@@ -80,7 +80,6 @@ export default function EditOrderPage() {
       const result = await submit()
       if (!result) return
       if (result.status === 'ok') {
-        console.log('saving edit', result.payload)
         toast.success(t.toast.updateOrderSuccess(id), { id: toastId })
         navigate('/')
         return
@@ -101,8 +100,7 @@ export default function EditOrderPage() {
     if (!delayInfo || accepting || cancelling) return
     setAccepting(true)
     try {
-      const payload = await submitWithAcceptedDate(delayInfo.earliestDate)
-      console.log('saving edit with accepted delay', payload)
+      await submitWithAcceptedDate()
       toast.success(t.toast.updateOrderSuccess(id), { id: toastId })
       setDelayInfo(null)
       navigate('/')
@@ -339,19 +337,6 @@ export default function EditOrderPage() {
               </button>
             </div>
             <div className={e.footerRight}>
-              <button
-                type="button"
-                className={e.reloadBtn}
-                onClick={reload}
-                disabled={reloading || submitting}
-              >
-                {reloading ? (
-                  <Spinner className={e.reloadBtnIcon} />
-                ) : (
-                  <RefreshCcw className={e.reloadBtnIcon} />
-                )}
-                {reloading ? t.editOrder.reloadingBtn : t.editOrder.reloadBtn}
-              </button>
               <div
                 className={e.saveWrap}
                 onMouseEnter={() => setSaveHovered(true)}

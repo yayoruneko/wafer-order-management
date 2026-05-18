@@ -91,7 +91,17 @@ function OrderRowBase({
               />
             </button>
           ) : null}
-          <span className={baseTextStrong}>{order.id}</span>
+          <span className={baseTextStrong}>
+            {(() => {
+              const parts = order.id.split('-')
+              if (parts.length >= 3) {
+                const prefix = parts.slice(0, 2).join('-') + '-'
+                const suffix = parts.slice(2).join('-')
+                return <><span className="whitespace-nowrap">{prefix}</span><br />{suffix}</>
+              }
+              return order.id
+            })()}
+          </span>
         </div>
       </Cell>
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getOrder } from '../api/orderApi'
+import { getOrder, updateOrder } from '../api/orderApi'
 import {
   QTY_MIN,
   QTY_MAX,
@@ -10,8 +10,24 @@ import useI18n from '../i18n/useI18n'
 
 const MS_PER_DAY = 86_400_000
 const CURRENT_USER = 'e.chen@fab2'
+const POLL_INTERVAL_MS = 1500
+const POLL_TIMEOUT_MS = 30_000
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function waitForScheduling(orderId) {
+  const started = Date.now()
+  while (Date.now() - started < POLL_TIMEOUT_MS) {
+    await wait(POLL_INTERVAL_MS)
+    try {
+      const { data } = await getOrder(orderId)
+      if (data?.status && data.status !== 'PENDING') return data
+    } catch {
+      // ignore transient errors
+    }
+  }
+  return null
+}
 
 function parseISO(iso) {
   if (!iso) return null
@@ -51,24 +67,6 @@ function mapOrder(o) {
   }
 }
 
-function mockCapacityCheck({ qty, dueDate, t }) {
-  if (!qty || !dueDate) return { ok: true }
-  const dayHash =
-    dueDate.getFullYear() * 372 + dueDate.getMonth() * 31 + dueDate.getDate()
-  const congestion = (dayHash % 7) + Math.floor(qty / 400)
-  if (congestion <= 5) return { ok: true }
-  const delayDays = Math.min(30, congestion - 5)
-  const earliest = new Date(dueDate)
-  earliest.setDate(earliest.getDate() + delayDays)
-  const conflictingOrders = (dayHash % 3) + 1
-  return {
-    ok: false,
-    delayDays,
-    earliest,
-    conflictingOrders,
-    scheduleWarning: t.scheduleAlert.defaultWarning(conflictingOrders),
-  }
-}
 
 export default function useEditOrder(orderId) {
   const { t } = useI18n()
@@ -157,16 +155,6 @@ export default function useEditOrder(orderId) {
 
   const updateDueDate = useCallback((d) => setDueDate(d), [])
 
-  const buildPayload = useCallback(
-    (effectiveDate) => ({
-      id: order?.id,
-      qty: Number(String(qty).replace(/,/g, '')),
-      requestedDueDate: toISO(dueDate),
-      expectedDate: toISO(effectiveDate ?? dueDate),
-    }),
-    [order, qty, dueDate],
-  )
-
   const reload = useCallback(async () => {
     setReloading(true)
     try {
@@ -180,24 +168,36 @@ export default function useEditOrder(orderId) {
   const submit = useCallback(async () => {
     if (!canSubmit) return null
     setSubmitting(true)
-    await wait(700)
-    const numericQty = Number(String(qty).replace(/,/g, ''))
-    const result = mockCapacityCheck({ qty: numericQty, dueDate, t })
-    setSubmitting(false)
-    if (result.ok) return { status: 'ok', payload: buildPayload(dueDate) }
-    return { status: 'delay', ...result }
-  }, [canSubmit, qty, dueDate, buildPayload, t])
-
-  const submitWithAcceptedDate = useCallback(
-    async (acceptedDate) => {
-      setSubmitting(true)
-      await wait(500)
-      const payload = buildPayload(acceptedDate)
+    try {
+      await updateOrder(order.id, {
+        quantity: Number(String(qty).replace(/,/g, '')),
+        customerDueDate: toISO(dueDate),
+      })
+      const scheduled = await waitForScheduling(order.id)
+      if (!scheduled) return { status: 'ok' }
+      if (scheduled.isDelayed) {
+        return {
+          status: 'delay',
+          delayDays: scheduled.delayDays ?? 0,
+          earliest: scheduled.expectedDueDate
+            ? new Date(`${scheduled.expectedDueDate}T00:00:00`)
+            : null,
+          scheduleWarning: scheduled.scheduleWarning,
+        }
+      }
+      return { status: 'ok' }
+    } catch (err) {
+      const message = err?.response?.data?.message ?? err?.message ?? '更新訂單失敗'
+      throw new Error(message)
+    } finally {
       setSubmitting(false)
-      return payload
-    },
-    [buildPayload],
-  )
+    }
+  }, [canSubmit, order, qty, dueDate])
+
+  const submitWithAcceptedDate = useCallback(async () => {
+    // 延遲已在 submit() 寫入後端，使用者確認時只需重新 fetch 最新資料
+    await reload()
+  }, [reload])
 
   return {
     order,
@@ -227,4 +227,5 @@ export default function useEditOrder(orderId) {
     submitWithAcceptedDate,
     currentUser: CURRENT_USER,
   }
+
 }

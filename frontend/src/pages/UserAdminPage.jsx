@@ -73,11 +73,11 @@ export default function UserAdminPage() {
       if (target.role === 'SUPER_ADMIN') return
       setPendingId(target.id)
       try {
-        const updated = await updateUserRole(target.id, nextRole)
+        await updateUserRole(target.id, nextRole)
         setUsers((prev) =>
-          prev.map((u) => (u.id === updated.id ? updated : u)),
+          prev.map((u) => (u.id === target.id ? { ...u, role: nextRole } : u)),
         )
-        const name = updated.displayName || updated.username
+        const name = target.displayName || target.username
         if (nextRole === 'ADMIN') {
           toast.success(t.userAdmin.toast.promoteSuccess(name), {
             id: `user-${updated.id}`,

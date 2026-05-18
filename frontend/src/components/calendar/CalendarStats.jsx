@@ -9,14 +9,6 @@ function CalendarStatsBase({ summary }) {
   const delta = summary.deltaVsPrev
   const deltaText = delta === 0 ? st.flatVsPrev : st.deltaVsPrev(delta)
 
-  const fullDaysHint = () => {
-    const days = summary.fullDays
-    if (!days.length) return st.noFullDays
-    const month = days[0].date.toLocaleDateString(t.locale, { month: 'short' })
-    const list = days.map((d) => d.day).join(', ')
-    return st.fullDaysHint(month, list)
-  }
-
   return (
     <div className={s.statsGrid}>
       <div className={s.statCard}>
@@ -33,7 +25,6 @@ function CalendarStatsBase({ summary }) {
         <div className={s.statLabel}>{st.fullDays}</div>
         <div className={s.statRow}>
           <span className={s.statValueRed}>{summary.fullDays.length}</span>
-          <span className={s.statHint}>{fullDaysHint()}</span>
         </div>
       </div>
 

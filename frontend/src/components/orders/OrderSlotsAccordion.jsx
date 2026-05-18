@@ -55,7 +55,7 @@ function OrderSlotsAccordionBase({ order }) {
       role="region"
       aria-label={t.orderSlots.regionAria(order.id)}
     >
-      <div className={styles.slotsInner}>
+      <div className={`${styles.slotsInner} max-w-[640px]`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-stone-500" />

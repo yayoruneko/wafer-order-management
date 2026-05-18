@@ -82,7 +82,7 @@ function CalendarDayCellBase({ cell, onOpen }) {
                 : `${s.cellCount} ${ls.countText}`
             }
           >
-            {formatCount(cell.count)} / {(cell.capacity / 1000).toLocaleString(t.locale)}k
+            {formatCount(cell.count)} / {formatCount(cell.capacity)}
           </div>
           {cell.load === 'full' && !muted ? (
             <div className={s.cellTag}>

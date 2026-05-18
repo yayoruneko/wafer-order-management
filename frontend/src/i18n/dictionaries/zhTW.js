@@ -68,16 +68,23 @@ const zhTW = {
   },
 
   cancelDialog: {
+    // IN_PRODUCTION warning variant
     titleSingle: '此訂單已在生產中！',
     titleBulk: '選取項目包含生產中訂單！',
     subtitleSingle: '取消此訂單將立即影響工廠排程',
     subtitleBulk: (n) => `共 ${n} 筆訂單已在生產中，取消將釋放已生產之產能`,
     body: '取消將釋放已生產之產能、影響其他排程訂單，且此操作無法復原。確定要繼續嗎？',
     affectedHeading: '受影響的生產中訂單',
+    affectedHeadingGeneral: '將被取消的訂單',
     moreCount: (n) => `…以及其他 ${n} 筆`,
     bulkBreakdown: (inProd, total) =>
       `${total} 筆選取訂單中，有 ${inProd} 筆為生產中`,
     irreversibleNote: '此操作無法復原。',
+    // General confirmation variant
+    titleSingleConfirm: '確認取消此訂單？',
+    subtitleSingleConfirm: '此操作無法復原，確定要繼續嗎？',
+    titleBulkConfirm: (n) => `確認取消 ${n} 筆訂單？`,
+    subtitleBulkConfirm: (n) => `共選取 ${n} 筆訂單，確認後將全部取消`,
     cancelBtn: '返回',
     confirmBtn: '確認取消訂單',
     confirmBtnBulk: (n) => `確認取消 ${n} 筆訂單`,
@@ -91,7 +98,7 @@ const zhTW = {
     createOrder: '建立訂單',
     tabs: {
       all: '全部',
-      delayed: '僅延遲',
+      delayed: '延遲',
       in_production: '生產中',
       mine: '我的訂單',
     },
@@ -101,7 +108,7 @@ const zhTW = {
       qty: '數量',
       status: '狀態',
       due: '交期',
-      expected: '預計',
+      expected: '完成日期',
       schedule: '排程',
       actions: '操作',
     },
@@ -137,12 +144,13 @@ const zhTW = {
     prevMonthAria: '上個月',
     nextMonthAria: '下個月',
     dowShort: ['日', '一', '二', '三', '四', '五', '六'],
+    resetFilters: '重置篩選',
   },
 
   bulk: {
     selected: (n) => `已選取 ${n} 筆訂單`,
     exportSelected: '匯出選取項目',
-    cancelSelected: '取消選取項目',
+    cancelSelected: '取消選取訂單',
     clearAria: '清除選取',
   },
 
@@ -216,7 +224,7 @@ const zhTW = {
     leadTimeHelp: (min, max) => `生產通常需要 ${min}–${max} 週的前置時間`,
 
     scheduleWarning:
-      '注意：修改數量或交期將釋放原廠區產能並觸發系統全局重排，可能導致最終排程日期變動。',
+      '注意：修改數量或交期將會重新排程，可能導致最終交期變動。',
 
     cancelBtn: '取消',
     reloadBtn: '重新載入',

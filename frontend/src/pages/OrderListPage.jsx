@@ -17,6 +17,7 @@ import Checkbox from '../components/orders/Checkbox'
 import CancelOrderDialog from '../components/orders/CancelOrderDialog'
 import useOrders from '../hooks/useOrders'
 import useI18n from '../i18n/useI18n'
+import useAuth from '../auth/useAuth'
 import { colWidths, styles } from '../styles/orderListStyles'
 
 function buildPageWindow(current, total) {
@@ -36,6 +37,7 @@ function buildPageWindow(current, total) {
 export default function OrderListPage() {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const { user } = useAuth()
   const {
     orders,
     total,
@@ -146,30 +148,24 @@ export default function OrderListPage() {
 
   const handleCancel = useCallback(
     (order) => {
-      if (order.status === 'IN_PRODUCTION') {
-        setConfirmState({ mode: 'single', order })
-        return
-      }
-      cancelOrderImmediate(order)
+      const hasInProdWarning = order.status === 'IN_PRODUCTION'
+      setConfirmState({ mode: 'single', order, hasInProdWarning })
     },
-    [cancelOrderImmediate],
+    [],
   )
 
   const handleCancelSelected = useCallback(() => {
     const n = selectedCount
     if (!n) return
     const inProd = selectedOrders.filter((o) => o.status === 'IN_PRODUCTION')
-    if (inProd.length > 0) {
-      setConfirmState({
-        mode: 'bulk',
-        inProductionOrders: inProd,
-        totalSelected: n,
-      })
-      return
-    }
-    cancelSelected()
-    toast.success(t.toast.bulkCancelSuccess(n), { id: 'bulk-cancel' })
-  }, [cancelSelected, selectedCount, selectedOrders, t])
+    const hasInProdWarning = inProd.length > 0
+    setConfirmState({
+      mode: 'bulk',
+      inProductionOrders: hasInProdWarning ? inProd : selectedOrders,
+      totalSelected: n,
+      hasInProdWarning,
+    })
+  }, [selectedCount, selectedOrders])
 
   const closeConfirm = useCallback(() => setConfirmState(null), [])
 
@@ -210,15 +206,17 @@ export default function OrderListPage() {
             <h1 className={styles.pageTitle}>{t.orderList.title}</h1>
             <p className={styles.pageSubtitle}>{t.orderList.subtitle}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              className={styles.primaryBtn}
-              onClick={() => navigate('/orders/new')}
-            >
-              <Plus className={styles.plusIcon} />
-              {t.orderList.createOrder}
-            </button>
-          </div>
+          {user?.role !== 'VIEWER' ? (
+            <div className="flex items-center gap-3">
+              <button
+                className={styles.primaryBtn}
+                onClick={() => navigate('/orders/new')}
+              >
+                <Plus className={styles.plusIcon} />
+                {t.orderList.createOrder}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <StatsCards
@@ -435,6 +433,7 @@ export default function OrderListPage() {
         order={confirmState?.order || null}
         inProductionOrders={confirmState?.inProductionOrders || []}
         totalSelected={confirmState?.totalSelected || 0}
+        hasInProdWarning={confirmState?.hasInProdWarning || false}
         onClose={closeConfirm}
         onConfirm={confirmCancel}
       />

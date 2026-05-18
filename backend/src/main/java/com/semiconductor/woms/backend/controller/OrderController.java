@@ -3,15 +3,16 @@ package com.semiconductor.woms.backend.controller;
 import com.semiconductor.woms.backend.dto.ApiResponse;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.dto.OrderStatsResponse;
 import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
 import com.semiconductor.woms.backend.dto.OrderSlotResponse;
-import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -28,8 +29,21 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<OrderResponse>> getAllOrders() {
-        return ResponseEntity.ok(orderService.getAllOrders());
+    public ResponseEntity<List<OrderResponse>> getAllOrders(
+            @RequestParam(required = false) String orderId,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String view) {
+        LocalDate from = (fromDate != null && !fromDate.isEmpty()) ? LocalDate.parse(fromDate) : null;
+        LocalDate to   = (toDate   != null && !toDate.isEmpty())   ? LocalDate.parse(toDate)   : null;
+        return ResponseEntity.ok(orderService.getFilteredOrders(orderId, customerName, status, from, to, view));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<OrderStatsResponse> getOrderStats() {
+        return ResponseEntity.ok(orderService.getOrderStats());
     }
 
     @GetMapping("/{id}")

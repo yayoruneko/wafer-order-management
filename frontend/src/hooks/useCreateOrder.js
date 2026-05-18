@@ -14,19 +14,53 @@ const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
 
 const MS_PER_DAY = 86_400_000
 const POLL_INTERVAL_MS = 1500
-const POLL_TIMEOUT_MS = 30_000
+// Extended timeout: covers SCHEDULE_ORDER (~5s) + auto-enqueued RESCHEDULE_ALL (~5s) + buffer
+const POLL_TIMEOUT_MS = 45_000
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// State machine to wait for the FULL scheduling cycle:
+//   PENDING
+//   → SCHEDULED(delayed=true)   ← SCHEDULE_ORDER done, but RESCHEDULE_ALL will follow
+//   → PENDING                   ← RESCHEDULE_ALL started (reset order)
+//   → SCHEDULED(final result)   ← RESCHEDULE_ALL done
+//
+// Only return on:
+//   - SCHEDULED with isDelayed=false (on-time, any point)
+//   - SCHEDULED with isDelayed=true AND we already saw the PENDING→SCHEDULED cycle
+//   - timeout (return null → caller treats as ok)
 async function waitForScheduling(orderId) {
   const started = Date.now()
+  let seenDelayed = false          // saw first SCHEDULED + isDelayed=true
+  let wentPendingAfterDelay = false  // went back to PENDING after above
+
   while (Date.now() - started < POLL_TIMEOUT_MS) {
     await wait(POLL_INTERVAL_MS)
     try {
       const { data } = await getOrder(orderId)
-      if (data?.status && data.status !== 'PENDING') return data
+      if (!data?.status) continue
+
+      if (data.status === 'PENDING') {
+        if (seenDelayed) wentPendingAfterDelay = true
+        continue
+      }
+
+      // SCHEDULED (or any non-PENDING terminal status)
+      if (!data.isDelayed) return data  // on-time: done
+
+      // isDelayed = true
+      if (!seenDelayed) {
+        // First delayed snapshot: RESCHEDULE_ALL is likely queued, keep waiting
+        seenDelayed = true
+        continue
+      }
+      if (wentPendingAfterDelay) {
+        // RESCHEDULE_ALL completed (saw PENDING in between) and still delayed → final answer
+        return data
+      }
+      // RESCHEDULE_ALL hasn't started yet → keep polling
     } catch {
-      // ignore transient errors and keep polling
+      // ignore transient errors
     }
   }
   return null
