@@ -7,15 +7,22 @@ import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.SchedulingAction;
+import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +41,9 @@ class OrderServiceTest {
 
     @Mock
     private CustomerRepository customerRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private SchedulingQueueService schedulingQueueService;

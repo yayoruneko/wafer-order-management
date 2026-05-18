@@ -1,5 +1,6 @@
 package com.semiconductor.woms.backend.service;
 
+import com.semiconductor.woms.backend.exception.CustomerNotFoundException;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
 import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
@@ -7,13 +8,17 @@ import com.semiconductor.woms.backend.dto.OrderSlotResponse;
 import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.SchedulingAction;
+import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.UserRepository;
 import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -30,7 +35,11 @@ public class OrderService {
     private CustomerRepository customerRepository;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private SchedulingQueueService schedulingQueueService;
+
 
     @Autowired
     private ProductionSlotRepository productionSlotRepository;
@@ -40,15 +49,17 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
+
         if (request.getQuantity() < 25 || request.getQuantity() > 2500) {
             throw new IllegalArgumentException("數量必須在 25 到 2500 之間");
         }
+
         if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("交期已過，無法新增此訂單");
+            throw new IllegalArgumentException("交期不得早於今日");
         }
 
         customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new IllegalArgumentException("找不到此客戶"));
+                .orElseThrow(() -> new CustomerNotFoundException("找不到此客戶 ID: " + request.getCustomerId()));
 
         Order order = new Order();
         order.setFactoryId(request.getFactoryId());
@@ -56,11 +67,17 @@ public class OrderService {
         order.setCustomerId(request.getCustomerId());
         order.setQuantity(request.getQuantity());
         order.setCustomerDueDate(request.getCustomerDueDate());
-        order.setCreatedBy("user-admin-001"); // Week 3 換成 JWT SecurityContext
+
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication();
+        if (auth != null) {
+            userRepository.findByUsername(auth.getName())
+                    .ifPresent(user -> order.setCreatedBy(user.getId()));
+        }
 
         Order savedOrder = orderRepository.save(order);
 
-        // 串接後端B：把排程任務加入佇列
         schedulingQueueService.enqueue(savedOrder.getId(), SchedulingAction.SCHEDULE_ORDER);
 
         return convertToResponse(savedOrder);
@@ -78,6 +95,43 @@ public class OrderService {
         return convertToResponse(order);
     }
 
+
+    @Transactional
+    public OrderResponse updateOrder(String id, OrderUpdateRequest request) {
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到欲更新的訂單 ID: " + id));
+
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
+            throw new IllegalStateException("無法更新已取消或已完成的訂單");
+        }
+
+        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("交期不得早於今日");
+        }
+
+        List<ProductionSlot> existingSlots = productionSlotRepository.findByOrderId(id);
+        for (ProductionSlot slot : existingSlots) {
+            schedulerService.releaseCapacity(slot.getFactoryId(), slot.getSlotDate(), slot.getQuantity());
+        }
+        productionSlotRepository.deleteByOrderId(id);
+
+        order.setQuantity(request.getQuantity());
+        order.setCustomerDueDate(request.getCustomerDueDate());
+        order.setRemainingQuantity(request.getQuantity());
+        order.setStatus(OrderStatus.PENDING);
+        order.setLastSlotDate(null);
+        order.setExpectedDueDate(null);
+        order.setIsDelayed(false);
+        order.setDelayDays(0);
+        order.setScheduleWarning(null);
+
+        Order updatedOrder = orderRepository.save(order);
+
+        schedulingQueueService.enqueueRescheduleAll();
+
+        return convertToResponse(updatedOrder);
+    }
     public List<OrderSlotResponse> getOrderSlots(String orderId) {
         if (!orderRepository.existsById(orderId)) {
             throw new RuntimeException("找不到訂單 ID: " + orderId);
@@ -98,16 +152,14 @@ public class OrderService {
 
     @Transactional
     public void cancelOrder(String id) {
+
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到訂單 ID: " + id));
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("訂單已取消");
+            throw new IllegalStateException("該訂單已經是取消狀態");
         }
-
-        // 釋放所有 ProductionSlot，歸還產能
         releaseSlots(order);
-
         order.setCancelledFromStatus(order.getStatus());
         order.setStatus(OrderStatus.CANCELLED);
         order.setRemainingQuantity(order.getQuantity());
@@ -120,39 +172,6 @@ public class OrderService {
 
         // 觸發全局重排，讓其他 PENDING 訂單填入釋放的空位
         schedulingQueueService.enqueueRescheduleAll();
-    }
-
-    @Transactional
-    public OrderResponse updateOrder(String id, OrderUpdateRequest request) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("找不到訂單 ID: " + id));
-
-        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
-            throw new IllegalStateException("已取消或已完成的訂單無法修改");
-        }
-        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("交期已過，無法修改");
-        }
-
-        // 釋放原有 slot，歸還產能
-        releaseSlots(order);
-
-        // 更新訂單資料，重置排程狀態
-        order.setQuantity(request.getQuantity());
-        order.setCustomerDueDate(request.getCustomerDueDate());
-        order.setRemainingQuantity(request.getQuantity());
-        order.setStatus(OrderStatus.PENDING);
-        order.setLastSlotDate(null);
-        order.setExpectedDueDate(null);
-        order.setIsDelayed(false);
-        order.setDelayDays(0);
-        order.setScheduleWarning(null);
-        Order saved = orderRepository.save(order);
-
-        // 觸發全局重排
-        schedulingQueueService.enqueueRescheduleAll();
-
-        return convertToResponse(saved);
     }
 
     // 釋放訂單的所有 ProductionSlot，並歸還 DailyCapacityUsage

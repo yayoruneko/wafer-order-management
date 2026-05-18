@@ -5,16 +5,22 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.model.Customer;
+import com.semiconductor.woms.backend.model.User;
+import com.semiconductor.woms.backend.model.enums.UserType;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
+import com.semiconductor.woms.backend.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
@@ -28,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin", authorities = "ADMIN")
 class OrderControllerIntegrationTest {
 
     @Autowired
@@ -38,6 +45,22 @@ class OrderControllerIntegrationTest {
 
     @Autowired
     private CustomerRepository customerRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @BeforeEach
+    void setupAdminUser() {
+        if (userRepository.findByUsername("admin").isEmpty()) {
+            User admin = new User();
+            admin.setId("admin-" + UUID.randomUUID());
+            admin.setUsername("admin");
+            admin.setPasswordHash("$2a$10$notUsedInTests");
+            admin.setRole(UserType.ADMIN);
+            admin.setCreatedAt(LocalDateTime.now());
+            userRepository.save(admin);
+        }
+    }
 
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
@@ -111,13 +134,13 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.message").value(containsString("交期")));
     }
 
-    // --- Case 4: customerId 不存在，createOrder 應該回傳 400 並顯示「找不到此客戶」 ---
+    // --- Case 4: customerId 不存在，createOrder 應該回傳 404 並顯示「找不到此客戶」 ---
     @Test
-    void createOrder_unknownCustomer_returns400WithMessage() throws Exception {
+    void createOrder_unknownCustomer_returns404WithMessage() throws Exception {
         mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(buildOrderJson("NONEXISTENT-" + UUID.randomUUID(), 100, LocalDate.now().plusDays(7))))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(containsString("找不到此客戶")));
     }
 
@@ -168,7 +191,7 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void cancelOrder_returns204() throws Exception {
+    void cancelOrder_returns200() throws Exception {
         Customer customer = new Customer();
         customer.setCustomerCode("CANCEL-" + UUID.randomUUID());
         customer.setName("Cancel Customer");
@@ -186,7 +209,7 @@ class OrderControllerIntegrationTest {
                 .get("id").asText();
 
         mockMvc.perform(delete("/api/orders/{id}", orderId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
     }
 
     @Test
