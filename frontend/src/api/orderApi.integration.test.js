@@ -14,8 +14,8 @@ const SERVER_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 beforeAll(async () => {
   const resp = await axios.post(`${SERVER_BASE}/auth/login`, {
-    username: 'test.admin',
-    password: 'Test1234!',
+    username: 'admin',
+    password: 'password',
   })
   // tokenStorage uses window which doesn't exist in the node test env,
   // so set the bearer token directly on the shared axios instance.

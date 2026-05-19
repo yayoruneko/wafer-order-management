@@ -10,10 +10,12 @@ import com.semiconductor.woms.backend.model.SchedulingAction;
 import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.CustomerRepository;
+import com.semiconductor.woms.backend.repository.OrderHistoryRepository;
 import com.semiconductor.woms.backend.repository.OrderRepository;
 import com.semiconductor.woms.backend.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
+import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -50,6 +52,9 @@ class OrderServiceTest {
 
     @Mock
     private ProductionSlotRepository productionSlotRepository;
+
+    @Mock
+    private OrderHistoryRepository orderHistoryRepository;
 
     @Mock
     private SchedulerService schedulerService;
@@ -169,7 +174,7 @@ class OrderServiceTest {
 
     @Test
     void getAllOrders_returnsEmptyListWhenNoOrders() {
-        when(orderRepository.findAll()).thenReturn(List.of());
+        when(orderRepository.findAll(any(Sort.class))).thenReturn(List.of());
         assertTrue(orderService.getAllOrders().isEmpty());
     }
 
@@ -180,7 +185,7 @@ class OrderServiceTest {
         customer.setCustomerCode("CODE-XYZ");
         customer.setName("XYZ Corp");
 
-        when(orderRepository.findAll()).thenReturn(List.of(order));
+        when(orderRepository.findAll(any(Sort.class))).thenReturn(List.of(order));
         when(customerRepository.findById("CUST-001")).thenReturn(Optional.of(customer));
 
         List<OrderResponse> result = orderService.getAllOrders();
