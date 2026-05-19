@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)      // 有 Token 但權限不對
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
@@ -58,7 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/orders/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
 
                         // 排程與用戶管理
-                        .requestMatchers("/scheduling/reschedule-all").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/scheduling/reschedule-all").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasAuthority("SUPER_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").hasAuthority("SUPER_ADMIN")
 

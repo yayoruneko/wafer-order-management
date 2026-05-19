@@ -1,8 +1,8 @@
 package com.semiconductor.woms.backend.controller;
 
 import com.semiconductor.woms.backend.dto.ApiResponse;
+import com.semiconductor.woms.backend.dto.UserResponse;
 import com.semiconductor.woms.backend.dto.UserRoleRequest;
-import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,7 @@ public class UserController {
     private UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.findAllUsers());
     }
 

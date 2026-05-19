@@ -23,19 +23,20 @@ export const statusBadge = {
 
 export const colWidths = {
   select: 'w-[44px]',
-  id: 'w-[170px]',
-  customer: 'w-[210px]',
+  id: 'w-[185px]',
+  customer: 'w-[200px]',
   qty: 'w-[90px]',
-  status: 'w-[150px]',
-  due: 'w-[120px]',
-  exp: 'w-[120px]',
-  schedule: 'w-[130px]',
+  status: 'w-[140px]',
+  due: 'w-[130px]',
+  exp: 'w-[130px]',
+  schedule: 'w-[120px]',
+  createdBy: 'w-[130px]',
   actions: 'w-[100px]',
 }
 
 export const styles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
-  shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
+  shell: 'mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7',
 
   // Page header
   headerRow: 'flex items-start justify-between',
@@ -89,9 +90,9 @@ export const styles = {
     'mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
   tableHeader: 'flex items-center bg-[#EFEAE0]/70 border-b border-stone-200/70',
   headerCellText:
-    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500',
+    'inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wider text-stone-500',
   headerCellBtn:
-    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500 hover:text-stone-800 transition cursor-pointer',
+    'inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wider text-stone-500 hover:text-stone-800 transition cursor-pointer',
   sortIcon: 'h-3 w-3 text-stone-400',
   sortIconActive: 'h-3 w-3 text-stone-900',
 
@@ -132,7 +133,7 @@ export const styles = {
   conflictWrap:
     'relative border-b border-stone-100 bg-red-50/30 last:border-b-0',
   conflictAccent: 'absolute left-0 top-0 h-full w-[3px] bg-red-400',
-  conflictInner: 'flex flex-col gap-3 px-5 py-4 pl-6',
+  conflictInner: 'flex flex-col gap-3 pl-[82px] pr-5 py-4',
   conflictHeader: 'flex items-start gap-2.5',
   conflictIconWrap:
     'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600',
@@ -167,7 +168,7 @@ export const styles = {
   // Slot accordion
   slotsWrap:
     'relative border-b border-stone-100 bg-stone-50/70 last:border-b-0',
-  slotsInner: 'flex flex-col gap-3 px-6 py-4',
+  slotsInner: 'flex flex-col gap-3 pl-[82px] pr-6 py-4',
   slotsTitle:
     'text-[11px] font-semibold uppercase tracking-wider text-stone-500',
   slotsSummary: 'text-[12px] text-stone-500',

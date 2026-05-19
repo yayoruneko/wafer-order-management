@@ -33,7 +33,7 @@ export const loadStyles = {
 
 export const calendarStyles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
-  shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
+  shell: 'mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7',
 
   headerRow: 'flex items-start justify-between',
   pageTitle: 'text-[28px] font-bold leading-tight text-stone-900',

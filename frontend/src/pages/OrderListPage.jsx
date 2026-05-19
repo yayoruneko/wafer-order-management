@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus } from 'lucide-react'
@@ -7,6 +7,7 @@ import { HeaderCell } from '../components/orders/Cell'
 import OrderRow from '../components/orders/OrderRow'
 import OrderConflictAccordion from '../components/orders/OrderConflictAccordion'
 import OrderSlotsAccordion from '../components/orders/OrderSlotsAccordion'
+import OrderHistoryAccordion from '../components/orders/OrderHistoryAccordion'
 import OrderFilters from '../components/orders/OrderFilters'
 import PageBtn from '../components/orders/PageBtn'
 import StatsCards from '../components/orders/StatsCards'
@@ -16,7 +17,9 @@ import SortableHeader from '../components/orders/SortableHeader'
 import Checkbox from '../components/orders/Checkbox'
 import CancelOrderDialog from '../components/orders/CancelOrderDialog'
 import useOrders from '../hooks/useOrders'
+import { cancelOrder as cancelOrderApi } from '../api/orderApi'
 import useI18n from '../i18n/useI18n'
+import useAuth from '../auth/useAuth'
 import { colWidths, styles } from '../styles/orderListStyles'
 
 function buildPageWindow(current, total) {
@@ -36,6 +39,7 @@ function buildPageWindow(current, total) {
 export default function OrderListPage() {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const { user } = useAuth()
   const {
     orders,
     total,
@@ -89,6 +93,13 @@ export default function OrderListPage() {
     [navigate],
   )
 
+  const pendingCancelsRef = useRef({})
+
+  useEffect(() => {
+    const pending = pendingCancelsRef.current
+    return () => { Object.values(pending).forEach(clearTimeout) }
+  }, [])
+
   const [confirmState, setConfirmState] = useState(null)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
@@ -119,6 +130,23 @@ export default function OrderListPage() {
     (order) => {
       const prevStatus = order.status
       updateOrderField(order.id, { status: 'CANCELLED' })
+
+      if (pendingCancelsRef.current[order.id]) {
+        clearTimeout(pendingCancelsRef.current[order.id])
+      }
+
+      pendingCancelsRef.current[order.id] = setTimeout(async () => {
+        delete pendingCancelsRef.current[order.id]
+        try {
+          await cancelOrderApi(order.id)
+        } catch {
+          updateOrderField(order.id, { status: prevStatus })
+          toast.error(t.toast.genericError, { id: `cancel-err-${order.id}` })
+        } finally {
+          retry()
+        }
+      }, 6000)
+
       toast.success(
         (to) => (
           <span className="flex items-center gap-3">
@@ -126,6 +154,8 @@ export default function OrderListPage() {
             <button
               type="button"
               onClick={() => {
+                clearTimeout(pendingCancelsRef.current[order.id])
+                delete pendingCancelsRef.current[order.id]
                 updateOrderField(order.id, { status: prevStatus })
                 toast.dismiss(to.id)
                 toast.success(t.toast.cancelUndone(order.id), {
@@ -141,35 +171,29 @@ export default function OrderListPage() {
         { id: `cancel-${order.id}`, duration: 6000 },
       )
     },
-    [updateOrderField, t],
+    [updateOrderField, retry, t],
   )
 
   const handleCancel = useCallback(
     (order) => {
-      if (order.status === 'IN_PRODUCTION') {
-        setConfirmState({ mode: 'single', order })
-        return
-      }
-      cancelOrderImmediate(order)
+      const hasInProdWarning = order.status === 'IN_PRODUCTION'
+      setConfirmState({ mode: 'single', order, hasInProdWarning })
     },
-    [cancelOrderImmediate],
+    [],
   )
 
   const handleCancelSelected = useCallback(() => {
     const n = selectedCount
     if (!n) return
     const inProd = selectedOrders.filter((o) => o.status === 'IN_PRODUCTION')
-    if (inProd.length > 0) {
-      setConfirmState({
-        mode: 'bulk',
-        inProductionOrders: inProd,
-        totalSelected: n,
-      })
-      return
-    }
-    cancelSelected()
-    toast.success(t.toast.bulkCancelSuccess(n), { id: 'bulk-cancel' })
-  }, [cancelSelected, selectedCount, selectedOrders, t])
+    const hasInProdWarning = inProd.length > 0
+    setConfirmState({
+      mode: 'bulk',
+      inProductionOrders: hasInProdWarning ? inProd : selectedOrders,
+      totalSelected: n,
+      hasInProdWarning,
+    })
+  }, [selectedCount, selectedOrders])
 
   const closeConfirm = useCallback(() => setConfirmState(null), [])
 
@@ -210,15 +234,17 @@ export default function OrderListPage() {
             <h1 className={styles.pageTitle}>{t.orderList.title}</h1>
             <p className={styles.pageSubtitle}>{t.orderList.subtitle}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              className={styles.primaryBtn}
-              onClick={() => navigate('/orders/new')}
-            >
-              <Plus className={styles.plusIcon} />
-              {t.orderList.createOrder}
-            </button>
-          </div>
+          {user?.role !== 'VIEWER' ? (
+            <div className="flex items-center gap-3">
+              <button
+                className={styles.primaryBtn}
+                onClick={() => navigate('/orders/new')}
+              >
+                <Plus className={styles.plusIcon} />
+                {t.orderList.createOrder}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <StatsCards
@@ -324,6 +350,16 @@ export default function OrderListPage() {
                   {t.orderList.columns.schedule}
                 </SortableHeader>
               </HeaderCell>
+              <HeaderCell className={colWidths.createdBy}>
+                <SortableHeader
+                  field="createdBy"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                >
+                  {t.orderList.columns.createdBy}
+                </SortableHeader>
+              </HeaderCell>
               <HeaderCell className={colWidths.actions}>
                 <SortableHeader>{t.orderList.columns.actions}</SortableHeader>
               </HeaderCell>
@@ -372,6 +408,7 @@ export default function OrderListPage() {
                             onNotifyCustomer={handleNotifyCustomer}
                           />
                         ) : null}
+                        <OrderHistoryAccordion order={o} />
                       </div>
                     ) : null}
                   </div>
@@ -435,6 +472,7 @@ export default function OrderListPage() {
         order={confirmState?.order || null}
         inProductionOrders={confirmState?.inProductionOrders || []}
         totalSelected={confirmState?.totalSelected || 0}
+        hasInProdWarning={confirmState?.hasInProdWarning || false}
         onClose={closeConfirm}
         onConfirm={confirmCancel}
       />

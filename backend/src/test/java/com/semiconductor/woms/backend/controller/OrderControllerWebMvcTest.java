@@ -101,7 +101,7 @@ class OrderControllerWebMvcTest {
         b.setId("o-2");
         b.setStatus("CANCELLED");
 
-        when(orderService.getAllOrders()).thenReturn(List.of(a, b));
+        when(orderService.getFilteredOrders(any(), any(), any(), any(), any(), any())).thenReturn(List.of(a, b));
 
         mockMvc.perform(get("/api/orders"))
                 .andExpect(status().isOk())

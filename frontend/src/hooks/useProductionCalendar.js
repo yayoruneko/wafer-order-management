@@ -61,13 +61,16 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
   const [factoryId, setFactoryId] = useState(FACTORIES[0].id)
   const [selectedISO, setSelectedISO] = useState(null)
   const [calendarData, setCalendarData] = useState({})
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const yearMonth = `${monthAnchor.getFullYear()}-${String(monthAnchor.getMonth() + 1).padStart(2, '0')}`
     api.get('/production/slots', { params: { factoryId, yearMonth } })
       .then(({ data }) => setCalendarData(data))
       .catch(() => setCalendarData({}))
-  }, [factoryId, monthAnchor])
+  }, [factoryId, monthAnchor, refreshKey])
+
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), [])
 
   const factoryData = calendarData
 
@@ -170,5 +173,6 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
     goToPrevMonth,
     goToNextMonth,
     goToToday,
+    refresh,
   }
 }

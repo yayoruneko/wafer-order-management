@@ -64,6 +64,9 @@ export default function EditOrderPage() {
     reload,
     submit,
     submitWithAcceptedDate,
+    conflicted,
+    clearConflict,
+    reloadAndClearConflict,
   } = useEditOrder(id)
 
   const [delayInfo, setDelayInfo] = useState(null)
@@ -80,7 +83,6 @@ export default function EditOrderPage() {
       const result = await submit()
       if (!result) return
       if (result.status === 'ok') {
-        console.log('saving edit', result.payload)
         toast.success(t.toast.updateOrderSuccess(id), { id: toastId })
         navigate('/')
         return
@@ -101,8 +103,7 @@ export default function EditOrderPage() {
     if (!delayInfo || accepting || cancelling) return
     setAccepting(true)
     try {
-      const payload = await submitWithAcceptedDate(delayInfo.earliestDate)
-      console.log('saving edit with accepted delay', payload)
+      await submitWithAcceptedDate()
       toast.success(t.toast.updateOrderSuccess(id), { id: toastId })
       setDelayInfo(null)
       navigate('/')
@@ -339,19 +340,6 @@ export default function EditOrderPage() {
               </button>
             </div>
             <div className={e.footerRight}>
-              <button
-                type="button"
-                className={e.reloadBtn}
-                onClick={reload}
-                disabled={reloading || submitting}
-              >
-                {reloading ? (
-                  <Spinner className={e.reloadBtnIcon} />
-                ) : (
-                  <RefreshCcw className={e.reloadBtnIcon} />
-                )}
-                {reloading ? t.editOrder.reloadingBtn : t.editOrder.reloadBtn}
-              </button>
               <div
                 className={e.saveWrap}
                 onMouseEnter={() => setSaveHovered(true)}
@@ -396,6 +384,43 @@ export default function EditOrderPage() {
           </div>
         </div>
       </div>
+
+      {conflicted ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-[15px] font-semibold text-stone-900">
+                  {t.editOrder.conflictTitle}
+                </h2>
+                <p className="mt-1 text-[13px] text-stone-600">
+                  {t.editOrder.conflictBody}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={clearConflict}
+                className="inline-flex h-9 items-center rounded-md border border-stone-300 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 transition"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={reloadAndClearConflict}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800 transition"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                {t.editOrder.conflictReload}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ScheduleDelayAlert
         open={!!delayInfo}

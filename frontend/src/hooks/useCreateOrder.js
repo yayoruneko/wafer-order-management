@@ -13,20 +13,47 @@ const HARDCODED_FACTORY_ID = 'factory-001'
 const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
 
 const MS_PER_DAY = 86_400_000
-const POLL_INTERVAL_MS = 1500
+const POLL_INTERVAL_MS = 500
+// Covers SCHEDULE_ORDER (~0.5s) + conditional RESCHEDULE_ALL (~0.5s) + queue wait + buffer
 const POLL_TIMEOUT_MS = 30_000
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// State machine to wait for the FULL scheduling cycle:
+//   PENDING
+//   → SCHEDULED(delayed=true)   ← SCHEDULE_ORDER done, but RESCHEDULE_ALL will follow
+//   → PENDING                   ← RESCHEDULE_ALL started (reset order)
+//   → SCHEDULED(final result)   ← RESCHEDULE_ALL done
+//
+// Only return on:
+//   - SCHEDULED with isDelayed=false (on-time, any point)
+//   - SCHEDULED with isDelayed=true AND we already saw the PENDING→SCHEDULED cycle
+//   - timeout (return null → caller treats as ok)
 async function waitForScheduling(orderId) {
   const started = Date.now()
+  let seenDelayed = false
+  let wentPendingAfterDelay = false
+
   while (Date.now() - started < POLL_TIMEOUT_MS) {
     await wait(POLL_INTERVAL_MS)
     try {
       const { data } = await getOrder(orderId)
-      if (data?.status && data.status !== 'PENDING') return data
+      if (!data?.status) continue
+
+      if (data.status === 'PENDING') {
+        if (seenDelayed) wentPendingAfterDelay = true
+        continue
+      }
+
+      if (!data.isDelayed) return data
+
+      if (!seenDelayed) {
+        seenDelayed = true
+        continue
+      }
+      if (wentPendingAfterDelay) return data
     } catch {
-      // ignore transient errors and keep polling
+      // ignore transient errors
     }
   }
   return null
@@ -166,7 +193,6 @@ export default function useCreateOrder() {
 
       const scheduled = await waitForScheduling(orderId)
       if (!scheduled) {
-        // Scheduler still pending — treat as success; the row will appear pending in the list
         return { status: 'ok', orderId }
       }
       if (scheduled.isDelayed) {
@@ -192,7 +218,7 @@ export default function useCreateOrder() {
     try {
       await cancelOrder(orderId)
     } catch {
-      // best effort: order may already be in a non-cancellable state
+      // best effort
     }
   }, [])
 

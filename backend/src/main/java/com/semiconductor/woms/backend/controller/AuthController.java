@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
@@ -36,7 +36,14 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<Map<String, String>> refresh(@RequestBody RefreshRequest refreshRequest) {
         String newAccessToken = authService.refresh(refreshRequest.getRefreshToken());
-        // 回傳新的 Access Token
         return ResponseEntity.ok(Collections.singletonMap("accessToken", newAccessToken));
+    }
+
+    /**
+     * 登出：前端清除 session，後端目前無狀態 (stateless JWT) 故直接回 200
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.ok().build();
     }
 }

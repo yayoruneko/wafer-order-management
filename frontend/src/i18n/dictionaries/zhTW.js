@@ -68,16 +68,23 @@ const zhTW = {
   },
 
   cancelDialog: {
+    // IN_PRODUCTION warning variant
     titleSingle: '此訂單已在生產中！',
     titleBulk: '選取項目包含生產中訂單！',
     subtitleSingle: '取消此訂單將立即影響工廠排程',
     subtitleBulk: (n) => `共 ${n} 筆訂單已在生產中，取消將釋放已生產之產能`,
     body: '取消將釋放已生產之產能、影響其他排程訂單，且此操作無法復原。確定要繼續嗎？',
     affectedHeading: '受影響的生產中訂單',
+    affectedHeadingGeneral: '將被取消的訂單',
     moreCount: (n) => `…以及其他 ${n} 筆`,
     bulkBreakdown: (inProd, total) =>
       `${total} 筆選取訂單中，有 ${inProd} 筆為生產中`,
     irreversibleNote: '此操作無法復原。',
+    // General confirmation variant
+    titleSingleConfirm: '確認取消此訂單？',
+    subtitleSingleConfirm: '此操作無法復原，確定要繼續嗎？',
+    titleBulkConfirm: (n) => `確認取消 ${n} 筆訂單？`,
+    subtitleBulkConfirm: (n) => `共選取 ${n} 筆訂單，確認後將全部取消`,
     cancelBtn: '返回',
     confirmBtn: '確認取消訂單',
     confirmBtnBulk: (n) => `確認取消 ${n} 筆訂單`,
@@ -91,7 +98,7 @@ const zhTW = {
     createOrder: '建立訂單',
     tabs: {
       all: '全部',
-      delayed: '僅延遲',
+      delayed: '延遲',
       in_production: '生產中',
       mine: '我的訂單',
     },
@@ -101,8 +108,9 @@ const zhTW = {
       qty: '數量',
       status: '狀態',
       due: '交期',
-      expected: '預計',
+      expected: '完成日期',
       schedule: '排程',
+      createdBy: '創建者',
       actions: '操作',
     },
     selectAllOnPage: '選取本頁全部',
@@ -137,12 +145,13 @@ const zhTW = {
     prevMonthAria: '上個月',
     nextMonthAria: '下個月',
     dowShort: ['日', '一', '二', '三', '四', '五', '六'],
+    resetFilters: '重置篩選',
   },
 
   bulk: {
     selected: (n) => `已選取 ${n} 筆訂單`,
     exportSelected: '匯出選取項目',
-    cancelSelected: '取消選取項目',
+    cancelSelected: '取消選取訂單',
     clearAria: '清除選取',
   },
 
@@ -216,7 +225,7 @@ const zhTW = {
     leadTimeHelp: (min, max) => `生產通常需要 ${min}–${max} 週的前置時間`,
 
     scheduleWarning:
-      '注意：修改數量或交期將釋放原廠區產能並觸發系統全局重排，可能導致最終排程日期變動。',
+      '注意：修改數量或交期將會重新排程，可能導致最終交期變動。',
 
     cancelBtn: '取消',
     reloadBtn: '重新載入',
@@ -224,6 +233,10 @@ const zhTW = {
     saveBtn: '儲存變更',
     savingBtn: '儲存中…',
     saveDisabledTooltip: '儲存前需要重新載入',
+
+    conflictTitle: '訂單已被其他人變更',
+    conflictBody: '在您編輯期間，此訂單已被其他使用者修改並儲存。請重新整理後再編輯，以免覆寫他人變更。',
+    conflictReload: '重新整理',
 
     minutesAgo: (n) => `${n} 分鐘前`,
     inDays: (n) => `${n} 天後`,
@@ -358,6 +371,26 @@ const zhTW = {
       customerDue: '客戶交期',
       expectedDone: '預計完成',
       dailyOutput: (qty) => `當日生產：${qty} 片`,
+    },
+  },
+
+  orderHistory: {
+    title: '異動紀錄',
+    loadError: '無法載入紀錄，請稍後再試。',
+    empty: '此訂單目前沒有異動紀錄。',
+    loading: '載入中…',
+    columns: {
+      action: '動作',
+      by: '操作者',
+      time: '時間',
+      qty: '數量',
+      dueDate: '交期',
+      status: '狀態',
+    },
+    changeType: {
+      CREATED: '建立',
+      MODIFIED: '修改',
+      CANCELLED: '取消',
     },
   },
 

@@ -9,13 +9,12 @@ function toIsoDate(d) {
   return `${y}-${m}-${day}`
 }
 
-// VITE_API_URL = "http://localhost:8080/api"; auth lives at the server root
-const SERVER_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace(/\/api$/, '')
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 beforeAll(async () => {
-  const resp = await axios.post(`${SERVER_BASE}/auth/login`, {
-    username: 'test.admin',
-    password: 'Test1234!',
+  const resp = await axios.post(`${API_BASE}/auth/login`, {
+    username: 'admin',
+    password: 'password',
   })
   // tokenStorage uses window which doesn't exist in the node test env,
   // so set the bearer token directly on the shared axios instance.

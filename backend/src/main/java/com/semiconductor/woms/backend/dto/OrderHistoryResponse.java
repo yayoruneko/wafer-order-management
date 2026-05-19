@@ -9,7 +9,8 @@ import java.time.LocalDate;
 public class OrderHistoryResponse {
     private String id;
     private String orderId;
-    private String changedBy;       // 之後可改為回傳 username
+    private String changedBy;
+    private String changedByUsername;
     private String changeType;
     private LocalDateTime changedAt;
     private Integer snapshotQuantity;

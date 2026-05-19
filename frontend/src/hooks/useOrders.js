@@ -1,20 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getOrders, cancelOrder } from '../api/orderApi'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getOrders, getOrderStats, cancelOrder } from '../api/orderApi'
 
 const CUSTOMER_COLORS = ['#76B900', '#ED1C24', '#0071C5', '#E60012', '#3253DC', '#1428A0', '#FF6B35', '#00B4D8']
 
-function mapOrder(o, index) {
+function hashColor(str) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h)
+  return CUSTOMER_COLORS[Math.abs(h) % CUSTOMER_COLORS.length]
+}
+
+function mapOrder(o) {
   return {
     id: o.id,
     customerCode: o.customerCode ?? '',
     customerName: o.customerName ?? '',
-    customerColor: CUSTOMER_COLORS[index % CUSTOMER_COLORS.length],
+    customerColor: hashColor(o.customerId ?? o.customerCode ?? ''),
     qty: o.quantity,
     status: o.status,
     dueDate: o.customerDueDate ?? null,
     expected: o.expectedDueDate ?? null,
     delayedDays: o.delayDays ?? 0,
     scheduleWarning: o.scheduleWarning ?? null,
+    createdBy: o.createdByUsername ?? '',
     owner: 'me',
   }
 }
@@ -22,13 +29,6 @@ function mapOrder(o, index) {
 export const PAGE_SIZE = 20
 
 const EMPTY_DATE_RANGE = { fromIso: '', toIso: '' }
-
-const VIEW_FILTERS = {
-  all: () => true,
-  delayed: (o) => o.delayedDays > 0 && o.status !== 'CANCELLED',
-  in_production: (o) => o.status === 'IN_PRODUCTION',
-  mine: (o) => o.owner === 'me',
-}
 
 function compare(a, b, field) {
   const av = a[field]
@@ -42,6 +42,8 @@ function compare(a, b, field) {
 
 export default function useOrders() {
   const [orders, setOrders] = useState([])
+  const [statsData, setStatsData] = useState({ total: 0, inProduction: 0, delayed: 0, totalWafers: 0 })
+  const [viewCountsData, setViewCountsData] = useState({ all: 0, delayed: 0, in_production: 0, mine: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [filters, setFilters] = useState({
@@ -56,11 +58,46 @@ export default function useOrders() {
   const [sortDir, setSortDir] = useState('asc')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
 
+  // Refs so stable callbacks can always read the latest values
+  const filtersRef = useRef(filters)
+  const viewRef = useRef(view)
+  useEffect(() => { filtersRef.current = filters }, [filters])
+  useEffect(() => { viewRef.current = view }, [view])
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const { data } = await getOrderStats()
+      setStatsData({
+        total: data.total,
+        inProduction: data.inProduction,
+        delayed: data.delayed,
+        totalWafers: data.totalWafers,
+      })
+      setViewCountsData({
+        all: data.allCount,
+        delayed: data.delayedCount,
+        in_production: data.inProductionCount,
+        mine: data.mineCount,
+      })
+    } catch {
+      // stats failure is non-critical
+    }
+  }, [])
+
   const fetchOrders = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
-      const { data } = await getOrders()
+      const { id, customer, status, dateRange } = filtersRef.current
+      const currentView = viewRef.current
+      const params = {}
+      if (id) params.orderId = id
+      if (customer) params.customerName = customer
+      if (status && status !== 'ALL') params.status = status
+      if (dateRange?.fromIso) params.fromDate = dateRange.fromIso
+      if (dateRange?.toIso) params.toDate = dateRange.toIso
+      if (currentView && currentView !== 'all') params.view = currentView
+      const { data } = await getOrders(params)
       setOrders(data.map(mapOrder))
     } catch {
       setOrders([])
@@ -70,64 +107,21 @@ export default function useOrders() {
     }
   }, [])
 
-  useEffect(() => { fetchOrders() }, [fetchOrders])
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
-  const stats = useMemo(() => {
-    let inProduction = 0
-    let delayed = 0
-    let totalWafers = 0
-    for (const o of orders) {
-      if (o.status === 'IN_PRODUCTION') inProduction += 1
-      if (o.delayedDays > 0 && o.status !== 'CANCELLED') delayed += 1
-      if (o.status !== 'CANCELLED') totalWafers += o.qty
-    }
-    return { total: orders.length, inProduction, delayed, totalWafers }
-  }, [orders])
-
-  const viewCounts = useMemo(
-    () => ({
-      all: orders.length,
-      delayed: orders.filter(VIEW_FILTERS.delayed).length,
-      in_production: orders.filter(VIEW_FILTERS.in_production).length,
-      mine: orders.filter(VIEW_FILTERS.mine).length,
-    }),
-    [orders],
-  )
-
-  const filtered = useMemo(() => {
-    const { id, customer, status, dateRange } = filters
-    const idLower = id.toLowerCase()
-    const custLower = customer.toLowerCase()
-    const fromIso = dateRange.fromIso || ''
-    const toIso = dateRange.toIso || ''
-    const viewFn = VIEW_FILTERS[view] ?? VIEW_FILTERS.all
-    return orders.filter((o) => {
-      if (!viewFn(o)) return false
-      if (idLower && !o.id.toLowerCase().includes(idLower)) return false
-      if (
-        custLower &&
-        !`${o.customerName} ${o.customerCode}`
-          .toLowerCase()
-          .includes(custLower)
-      )
-        return false
-      if (status && status !== 'ALL' && o.status !== status) return false
-      if (fromIso || toIso) {
-        const due = o.dueDate || ''
-        if (!due) return false
-        if (fromIso && due < fromIso) return false
-        if (toIso && due > toIso) return false
-      }
-      return true
-    })
-  }, [orders, filters, view])
+  // Re-fetch whenever filters or view change (fetchOrders is stable)
+  useEffect(() => {
+    fetchOrders()
+  }, [filters, view, fetchOrders])
 
   const sorted = useMemo(() => {
-    if (!sortField) return filtered
-    const arr = [...filtered]
+    if (!sortField) return orders
+    const arr = [...orders]
     arr.sort((a, b) => compare(a, b, sortField) * (sortDir === 'asc' ? 1 : -1))
     return arr
-  }, [filtered, sortField, sortDir])
+  }, [orders, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -216,11 +210,12 @@ export default function useOrders() {
       await Promise.all(ids.map((id) => cancelOrder(id)))
     } finally {
       fetchOrders()
+      fetchStats()
     }
-  }, [selectedIds, fetchOrders])
+  }, [selectedIds, fetchOrders, fetchStats])
 
   const exportSelected = useCallback(() => {
-    const rows = orders.filter((o) => selectedIds.has(o.id))
+    const rows = sorted.filter((o) => selectedIds.has(o.id))
     const header = ['Order ID', 'Customer', 'Qty', 'Status', 'Due Date', 'Expected']
     const toCell = (v) => {
       const s = v == null ? '' : String(v)
@@ -252,7 +247,7 @@ export default function useOrders() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, [orders, selectedIds])
+  }, [sorted, selectedIds])
 
   const pageAllSelected =
     pageItems.length > 0 && pageItems.every((o) => selectedIds.has(o.id))
@@ -260,22 +255,27 @@ export default function useOrders() {
     !pageAllSelected && pageItems.some((o) => selectedIds.has(o.id))
 
   const selectedOrders = useMemo(
-    () => orders.filter((o) => selectedIds.has(o.id)),
-    [orders, selectedIds],
+    () => sorted.filter((o) => selectedIds.has(o.id)),
+    [sorted, selectedIds],
   )
+
+  const retry = useCallback(() => {
+    fetchOrders()
+    fetchStats()
+  }, [fetchOrders, fetchStats])
 
   return {
     orders: pageItems,
     loading,
     error,
-    retry: fetchOrders,
-    total: orders.length,
-    filteredTotal: filtered.length,
+    retry,
+    total: statsData.total,
+    filteredTotal: sorted.length,
     page: safePage,
     pageSize: PAGE_SIZE,
     totalPages,
-    stats,
-    viewCounts,
+    stats: statsData,
+    viewCounts: viewCountsData,
     view,
     changeView,
     sortField,

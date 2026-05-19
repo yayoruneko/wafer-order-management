@@ -19,13 +19,14 @@ public class QueuePoller {
 
     private final SchedulingQueueRepository queueRepository;
     private final SchedulerService schedulerService;
+    private final SchedulingQueueService schedulingQueueService;
 
     /**
      * 每次只取一筆 PENDING 任務執行，確保任務序列化。
      * fixedDelay 保證上一次 poll() 結束後才會再次觸發，不會並發執行。
      * 若有任務卡在 PROCESSING（例如 app 重啟），優先跳過以免重複執行。
      */
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 500)
     public void poll() {
         // 若有任務仍在 PROCESSING，等下一輪再試（防止 app 重啟造成重複執行）
         List<SchedulingQueue> processing = queueRepository
@@ -47,7 +48,13 @@ public class QueuePoller {
 
         try {
             if (task.getAction() == SchedulingAction.SCHEDULE_ORDER) {
-                schedulerService.scheduleOrder(task.getOrderId());
+                ScheduleResult result = schedulerService.scheduleOrder(task.getOrderId());
+                // PDF rule: if new order ends up delayed or unschedulable, trigger global reschedule
+                // so EDD-optimal sorting can potentially free up earlier slots for this order
+                if (result.isDelayed() || result.isUnschedulable()) {
+                    schedulingQueueService.enqueueRescheduleAll();
+                    log.info("Order {} is delayed/unschedulable after SCHEDULE_ORDER, enqueued RESCHEDULE_ALL", task.getOrderId());
+                }
             } else if (task.getAction() == SchedulingAction.RESCHEDULE_ALL
                     || task.getAction() == SchedulingAction.CANCEL_ORDER) {
                 schedulerService.rescheduleAll();

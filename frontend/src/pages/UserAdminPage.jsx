@@ -73,11 +73,11 @@ export default function UserAdminPage() {
       if (target.role === 'SUPER_ADMIN') return
       setPendingId(target.id)
       try {
-        const updated = await updateUserRole(target.id, nextRole)
+        await updateUserRole(target.id, nextRole)
         setUsers((prev) =>
-          prev.map((u) => (u.id === updated.id ? updated : u)),
+          prev.map((u) => (u.id === target.id ? { ...u, role: nextRole } : u)),
         )
-        const name = updated.displayName || updated.username
+        const name = target.displayName || target.username
         if (nextRole === 'ADMIN') {
           toast.success(t.userAdmin.toast.promoteSuccess(name), {
             id: `user-${updated.id}`,
@@ -101,7 +101,7 @@ export default function UserAdminPage() {
   if (!isSuper) {
     return (
       <div className="min-h-screen w-full bg-[#F5F1E8]">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7">
           <TopNav />
           <div className="mt-12 mx-auto flex max-w-[440px] flex-col items-center gap-4 rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
@@ -131,7 +131,7 @@ export default function UserAdminPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#F5F1E8]">
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7">
         <TopNav />
         <div className="flex items-start justify-between">
           <div>
@@ -145,7 +145,7 @@ export default function UserAdminPage() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="grid grid-cols-[180px_1fr_140px_140px_220px] items-center border-b border-stone-200/70 bg-[#EFEAE0]/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-stone-500">
+          <div className="grid grid-cols-[180px_1fr_170px_140px_200px] items-center border-b border-stone-200/70 bg-[#EFEAE0]/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-stone-500">
             <span>{t.userAdmin.columns.username}</span>
             <span>{t.userAdmin.columns.displayName}</span>
             <span>{t.userAdmin.columns.role}</span>
@@ -179,7 +179,7 @@ export default function UserAdminPage() {
               return (
                 <div
                   key={u.id}
-                  className="grid grid-cols-[180px_1fr_140px_140px_220px] items-center border-b border-stone-100 px-4 py-3 last:border-b-0 hover:bg-stone-50/50"
+                  className="grid grid-cols-[180px_1fr_170px_140px_200px] items-center border-b border-stone-100 px-4 py-3 last:border-b-0 hover:bg-stone-50/50"
                 >
                   <span className="text-[13px] font-medium text-stone-900">
                     {u.username}

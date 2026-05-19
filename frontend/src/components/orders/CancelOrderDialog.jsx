@@ -12,6 +12,7 @@ function CancelOrderDialogBase({
   order = null,
   inProductionOrders = [],
   totalSelected = 0,
+  hasInProdWarning = false,
   onClose,
   onConfirm,
 }) {
@@ -26,13 +27,18 @@ function CancelOrderDialogBase({
   const visible = list.slice(0, MAX_LIST)
   const remaining = Math.max(0, list.length - visible.length)
 
-  const title = isBulk ? t.cancelDialog.titleBulk : t.cancelDialog.titleSingle
+  const title = isBulk
+    ? (hasInProdWarning ? t.cancelDialog.titleBulk : t.cancelDialog.titleBulkConfirm(totalSelected))
+    : (hasInProdWarning ? t.cancelDialog.titleSingle : t.cancelDialog.titleSingleConfirm)
   const subtitle = isBulk
-    ? t.cancelDialog.subtitleBulk(inProdCount)
-    : t.cancelDialog.subtitleSingle
+    ? (hasInProdWarning ? t.cancelDialog.subtitleBulk(inProdCount) : t.cancelDialog.subtitleBulkConfirm(totalSelected))
+    : (hasInProdWarning ? t.cancelDialog.subtitleSingle : t.cancelDialog.subtitleSingleConfirm)
   const confirmLabel = isBulk
     ? t.cancelDialog.confirmBtnBulk(totalSelected)
     : t.cancelDialog.confirmBtn
+  const heading = hasInProdWarning
+    ? t.cancelDialog.affectedHeading
+    : t.cancelDialog.affectedHeadingGeneral
 
   return (
     <Modal
@@ -63,11 +69,13 @@ function CancelOrderDialogBase({
         </button>
       </div>
 
-      <p id={descId} className="mt-4 text-[14px] leading-relaxed text-stone-700">
-        {t.cancelDialog.body}
-      </p>
+      {hasInProdWarning ? (
+        <p id={descId} className="mt-4 text-[14px] leading-relaxed text-stone-700">
+          {t.cancelDialog.body}
+        </p>
+      ) : null}
 
-      {isBulk && totalSelected > inProdCount ? (
+      {isBulk && hasInProdWarning && totalSelected > inProdCount ? (
         <p className="mt-2 text-[12px] text-stone-500">
           {t.cancelDialog.bulkBreakdown(inProdCount, totalSelected)}
         </p>
@@ -77,7 +85,7 @@ function CancelOrderDialogBase({
         <div className="mt-4 rounded-lg border border-red-200/70 bg-red-50/60 px-4 py-3">
           <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-red-700">
             <Factory className="h-3.5 w-3.5" />
-            {t.cancelDialog.affectedHeading}
+            {heading}
           </div>
           <ul className="mt-2 flex flex-col gap-1.5">
             {visible.map((o) => (

@@ -14,6 +14,14 @@ function useFormatDate() {
   }
 }
 
+const CUSTOMER_COLORS = ['#76B900', '#ED1C24', '#0071C5', '#E60012', '#3253DC', '#1428A0', '#FF6B35', '#00B4D8']
+
+function hashColor(str) {
+  let h = 0
+  for (let i = 0; i < (str?.length ?? 0); i++) h = str.charCodeAt(i) + ((h << 5) - h)
+  return CUSTOMER_COLORS[Math.abs(h) % CUSTOMER_COLORS.length]
+}
+
 function customerInitials(name) {
   if (!name) return '?'
   return name.slice(0, 2).toUpperCase()
@@ -30,7 +38,7 @@ function OrderRow({ order }) {
         <div className={s.orderCardCustomer}>
           <span
             className={s.orderCardLogo}
-            style={{ backgroundColor: order.customerColor || '#78716c' }}
+            style={{ backgroundColor: hashColor(order.customerId ?? order.customerCode ?? '') }}
           >
             {customerInitials(order.customerName)}
           </span>

@@ -1,6 +1,3 @@
-import { useCallback } from 'react'
-import toast from 'react-hot-toast'
-import { RefreshCw } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import useProductionCalendar from '../hooks/useProductionCalendar'
 import CalendarStats from '../components/calendar/CalendarStats'
@@ -32,10 +29,6 @@ export default function CalendarPage() {
     t.calendar.monthFormat,
   )
 
-  const handleReschedule = useCallback(() => {
-    toast.success(t.toast.rescheduleAllTriggered, { id: 'reschedule-all' })
-  }, [t])
-
   return (
     <div className={s.page}>
       <div className={s.shell}>
@@ -44,16 +37,6 @@ export default function CalendarPage() {
           <div>
             <h1 className={s.pageTitle}>{t.calendar.title}</h1>
             <p className={s.pageSubtitle}>{t.calendar.subtitle}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className={s.rescheduleBtn}
-              onClick={handleReschedule}
-            >
-              <RefreshCw className={s.rescheduleIcon} />
-              {t.calendar.rescheduleAll}
-            </button>
           </div>
         </div>
 
