@@ -21,7 +21,7 @@ function SortableHeaderBase({
   if (!sortable) {
     return (
       <div className={`flex w-full ${justify}`} title={hint || undefined}>
-        <span className={styles.headerCellText}>{children}</span>
+        <span className={`${styles.headerCellText} whitespace-nowrap`}>{children}</span>
         {hintIcon}
       </div>
     )
@@ -40,7 +40,7 @@ function SortableHeaderBase({
       className={`flex w-full ${justify} ${styles.headerCellBtn}`}
       title={hint || undefined}
     >
-      <span>{children}</span>
+      <span className="whitespace-nowrap">{children}</span>
       <Icon className={active ? styles.sortIconActive : styles.sortIcon} />
       {hintIcon}
     </button>

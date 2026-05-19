@@ -1,7 +1,6 @@
 package com.semiconductor.woms.backend.config;
 
 import com.semiconductor.woms.backend.model.Order;
-import com.semiconductor.woms.backend.model.SchedulingAction;
 import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.model.enums.UserType;
@@ -35,11 +34,13 @@ public class DemoDataInitializer implements CommandLineRunner {
     private void seedOrdersIfEmpty() {
         if (orderRepository.count() > 0) return;
 
-        // Seed a few IN_PRODUCTION orders (past due dates, already being produced)
+        LocalDate today = LocalDate.now();
+
+        // A few IN_PRODUCTION orders (already being produced, no scheduler needed)
         Object[][] inProdSeeds = {
-            {"customer-001", 2500, "2026-05-10"},
-            {"customer-002", 2000, "2026-05-13"},
-            {"customer-003", 1500, "2026-05-16"},
+            {"customer-001", 2500, -12},
+            {"customer-002", 2000, -8},
+            {"customer-003", 1500, -4},
         };
         for (Object[] seed : inProdSeeds) {
             Order order = new Order();
@@ -48,45 +49,47 @@ public class DemoDataInitializer implements CommandLineRunner {
             order.setCustomerId((String) seed[0]);
             order.setCreatedBy("user-admin-001");
             order.setQuantity((Integer) seed[1]);
-            order.setCustomerDueDate(LocalDate.parse((String) seed[2]));
+            LocalDate due = today.plusDays((Integer) seed[2]);
+            order.setCustomerDueDate(due);
             order.setStatus(OrderStatus.PENDING);
             order = orderRepository.save(order);
             order.setStatus(OrderStatus.IN_PRODUCTION);
-            order.setExpectedDueDate(LocalDate.parse((String) seed[2]));
-            order.setLastSlotDate(LocalDate.parse((String) seed[2]));
+            order.setExpectedDueDate(due);
+            order.setLastSlotDate(due);
             orderRepository.save(order);
         }
 
-        // {customerId, qty, dueDate}
-        // Group A: 5 orders due 05/19 (today) — 4 fit in day-1 capacity, 5th overflows → DELAYED
-        // Group B: 4 orders due 05/20 — overflow from A fills day-2, 1 overflows → DELAYED
-        // Groups C-G: comfortable due dates spread across late May to June
+        // PENDING orders with future due dates spread across ~10 weeks.
+        // Using relative offsets from today so dates never go stale.
+        // Max 4 orders per day (factory capacity = 10,000; max order = 2,500 → 4 fit per day).
+        // Each due-date window is distinct enough to avoid capacity overflow at startup.
         Object[][] seeds = {
-            {"customer-001", 2500, "2026-05-19"},
-            {"customer-002", 2500, "2026-05-19"},
-            {"customer-003", 2500, "2026-05-19"},
-            {"customer-004", 2500, "2026-05-19"},
-            {"customer-005", 2500, "2026-05-19"}, // DELAYED: overflows to 05/20
-            {"customer-001", 2500, "2026-05-20"},
-            {"customer-002", 2500, "2026-05-20"},
-            {"customer-003", 2500, "2026-05-20"},
-            {"customer-004", 2500, "2026-05-20"}, // DELAYED: overflows to 05/21
-            {"customer-005", 1500, "2026-05-23"},
-            {"customer-001", 2000, "2026-05-25"},
-            {"customer-002", 1800, "2026-05-27"},
-            {"customer-003", 1200, "2026-05-29"},
-            {"customer-004", 2500, "2026-05-31"},
-            {"customer-005", 2000, "2026-06-03"},
-            {"customer-001", 2500, "2026-06-06"},
-            {"customer-002", 1500, "2026-06-09"},
-            {"customer-003", 2000, "2026-06-12"},
-            {"customer-004", 2500, "2026-06-16"},
-            {"customer-005", 1000, "2026-06-19"},
-            {"customer-001", 2500, "2026-06-22"},
-            {"customer-002", 1800, "2026-06-24"},
-            {"customer-003", 2000, "2026-06-26"},
-            {"customer-004", 2500, "2026-06-28"},
-            {"customer-005", 1200, "2026-06-30"},
+            // {customerId, qty, daysFromToday}
+            {"customer-001", 2500,  6},
+            {"customer-002", 2000,  8},
+            {"customer-003", 1500, 10},
+            {"customer-004", 2500, 11},
+            {"customer-005", 2500, 13},
+            {"customer-001", 2500, 15},
+            {"customer-002", 2000, 17},
+            {"customer-003", 1500, 19},
+            {"customer-004", 2500, 21},
+            {"customer-005", 2500, 23},
+            {"customer-001", 2000, 25},
+            {"customer-002", 1800, 27},
+            {"customer-003", 1200, 29},
+            {"customer-004", 2500, 31},
+            {"customer-005", 2000, 33},
+            {"customer-001", 2500, 36},
+            {"customer-002", 1500, 39},
+            {"customer-003", 2000, 42},
+            {"customer-004", 2500, 45},
+            {"customer-005", 1000, 48},
+            {"customer-001", 2500, 51},
+            {"customer-002", 1800, 54},
+            {"customer-003", 2000, 57},
+            {"customer-004", 2500, 60},
+            {"customer-005", 1200, 63},
         };
 
         for (Object[] seed : seeds) {
@@ -96,11 +99,14 @@ public class DemoDataInitializer implements CommandLineRunner {
             order.setCustomerId((String) seed[0]);
             order.setCreatedBy("user-admin-001");
             order.setQuantity((Integer) seed[1]);
-            order.setCustomerDueDate(LocalDate.parse((String) seed[2]));
+            order.setCustomerDueDate(today.plusDays((Integer) seed[2]));
             order.setStatus(OrderStatus.PENDING);
-            order = orderRepository.save(order);
-            schedulingQueueService.enqueue(order.getId(), SchedulingAction.SCHEDULE_ORDER);
+            orderRepository.save(order);
         }
+
+        // Enqueue a single RESCHEDULE_ALL so the first scheduling pass
+        // uses EDD-optimal order — no intermediate per-order delay states.
+        schedulingQueueService.enqueueRescheduleAll();
     }
 
     private void createIfAbsent(String id, String username, String password, UserType role) {

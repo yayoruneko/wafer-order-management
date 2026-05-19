@@ -76,6 +76,7 @@ export default function useEditOrder(orderId) {
   const [dueDate, setDueDate] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [reloading, setReloading] = useState(false)
+  const [conflicted, setConflicted] = useState(false)
   const [initial, setInitial] = useState({ qty: '', dueIso: '' })
 
   const applyOrder = useCallback((next) => {
@@ -187,12 +188,23 @@ export default function useEditOrder(orderId) {
       }
       return { status: 'ok' }
     } catch (err) {
+      if (err?.response?.status === 409) {
+        setConflicted(true)
+        return null
+      }
       const message = err?.response?.data?.message ?? err?.message ?? '更新訂單失敗'
       throw new Error(message)
     } finally {
       setSubmitting(false)
     }
   }, [canSubmit, order, qty, dueDate])
+
+  const clearConflict = useCallback(() => setConflicted(false), [])
+
+  const reloadAndClearConflict = useCallback(async () => {
+    setConflicted(false)
+    await reload()
+  }, [reload])
 
   const submitWithAcceptedDate = useCallback(async () => {
     // 延遲已在 submit() 寫入後端，使用者確認時只需重新 fetch 最新資料
@@ -225,6 +237,9 @@ export default function useEditOrder(orderId) {
     reload,
     submit,
     submitWithAcceptedDate,
+    conflicted,
+    clearConflict,
+    reloadAndClearConflict,
     currentUser: CURRENT_USER,
   }
 

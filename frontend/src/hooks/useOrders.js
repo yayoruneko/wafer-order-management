@@ -21,6 +21,7 @@ function mapOrder(o) {
     expected: o.expectedDueDate ?? null,
     delayedDays: o.delayDays ?? 0,
     scheduleWarning: o.scheduleWarning ?? null,
+    createdBy: o.createdByUsername ?? '',
     owner: 'me',
   }
 }

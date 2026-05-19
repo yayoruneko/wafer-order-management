@@ -149,13 +149,13 @@ function OrderRowBase({
           display={formatDate(order.dueDate, t.locale)}
           type="date"
           disabled={cancelled}
-          textClassName={baseText}
+          textClassName={`${baseText} whitespace-nowrap`}
           onCommit={(v) => onUpdateField?.(order.id, { dueDate: v })}
         />
       </Cell>
 
       <Cell className={colWidths.exp}>
-        <span className={expectedClass}>
+        <span className={`${expectedClass} whitespace-nowrap`}>
           {cancelled
             ? formatDate(order.dueDate, t.locale)
             : formatDate(order.expected, t.locale)}
@@ -175,6 +175,12 @@ function OrderRowBase({
             orderId={order.id}
           />
         )}
+      </Cell>
+
+      <Cell className={colWidths.createdBy}>
+        <span className={`${styles.cellText} truncate font-mono text-[11px]`}>
+          {order.createdBy || '—'}
+        </span>
       </Cell>
 
       <Cell className={`${colWidths.actions} gap-1`} data-no-expand>

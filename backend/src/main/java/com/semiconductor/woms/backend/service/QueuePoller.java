@@ -26,7 +26,7 @@ public class QueuePoller {
      * fixedDelay 保證上一次 poll() 結束後才會再次觸發，不會並發執行。
      * 若有任務卡在 PROCESSING（例如 app 重啟），優先跳過以免重複執行。
      */
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 500)
     public void poll() {
         // 若有任務仍在 PROCESSING，等下一輪再試（防止 app 重啟造成重複執行）
         List<SchedulingQueue> processing = queueRepository

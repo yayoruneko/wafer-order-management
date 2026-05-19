@@ -23,19 +23,20 @@ export const statusBadge = {
 
 export const colWidths = {
   select: 'w-[44px]',
-  id: 'w-[200px]',
-  customer: 'w-[210px]',
+  id: 'w-[185px]',
+  customer: 'w-[200px]',
   qty: 'w-[90px]',
-  status: 'w-[150px]',
-  due: 'w-[145px]',
-  exp: 'w-[145px]',
-  schedule: 'w-[130px]',
+  status: 'w-[140px]',
+  due: 'w-[130px]',
+  exp: 'w-[130px]',
+  schedule: 'w-[120px]',
+  createdBy: 'w-[130px]',
   actions: 'w-[100px]',
 }
 
 export const styles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
-  shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
+  shell: 'mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7',
 
   // Page header
   headerRow: 'flex items-start justify-between',

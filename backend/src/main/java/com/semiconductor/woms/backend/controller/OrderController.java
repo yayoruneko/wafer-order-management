@@ -1,6 +1,7 @@
 package com.semiconductor.woms.backend.controller;
 
 import com.semiconductor.woms.backend.dto.ApiResponse;
+import com.semiconductor.woms.backend.dto.OrderHistoryResponse;
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
 import com.semiconductor.woms.backend.dto.OrderStatsResponse;
@@ -63,16 +64,13 @@ public class OrderController {
         return ResponseEntity.ok(new ApiResponse(200,  "訂單 " + id + " 已成功取消"));
     }
 
-    // GET /api/orders/{id}/slots - 取得訂單被分配的生產日期與數量
     @GetMapping("/{id}/slots")
     public ResponseEntity<List<OrderSlotResponse>> getOrderSlots(@PathVariable String id) {
         return ResponseEntity.ok(orderService.getOrderSlots(id));
     }
 
-//    @GetMapping("/{id}/history")
-//    public ResponseEntity<List<OrderHistoryResponse>> getOrderHistory(
-//            @PathVariable String id) {
-//        return ResponseEntity.ok(orderService.getOrderById(id));
-//
-//    }
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<OrderHistoryResponse>> getOrderHistory(@PathVariable String id) {
+        return ResponseEntity.ok(orderService.getOrderHistory(id));
+    }
 }

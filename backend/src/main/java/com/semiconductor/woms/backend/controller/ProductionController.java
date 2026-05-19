@@ -64,6 +64,7 @@ public class ProductionController {
                 info.setQty(slot.getQuantity());
                 info.setScheduleWarning(order.getScheduleWarning());
                 info.setIsDelayed(delayed);
+                info.setCustomerId(order.getCustomerId());
                 customerRepo.findById(order.getCustomerId()).ifPresent(c -> {
                     info.setCustomerName(c.getName());
                     info.setCustomerCode(c.getCustomerCode());

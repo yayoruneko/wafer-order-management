@@ -114,6 +114,7 @@ const en = {
       due: 'Due Date',
       expected: 'Completion Date',
       schedule: 'Schedule',
+      createdBy: 'Created by',
       actions: 'Actions',
     },
     selectAllOnPage: 'Select all on page',
@@ -240,6 +241,10 @@ const en = {
     saveBtn: 'Save changes',
     savingBtn: 'Saving…',
     saveDisabledTooltip: 'Reload required before saving',
+
+    conflictTitle: 'Order changed by another user',
+    conflictBody: 'This order was modified and saved by another user while you were editing. Reload to get the latest version before making changes.',
+    conflictReload: 'Reload page',
 
     minutesAgo: (n) => `${n} min ago`,
     inDays: (n) => `in ${n} days`,
@@ -377,6 +382,26 @@ const en = {
       customerDue: 'Customer due',
       expectedDone: 'Expected',
       dailyOutput: (qty) => `Daily output: ${qty} wafers`,
+    },
+  },
+
+  orderHistory: {
+    title: 'History',
+    loadError: 'Could not load history. Please try again.',
+    empty: 'No history for this order yet.',
+    loading: 'Loading…',
+    columns: {
+      action: 'Action',
+      by: 'By',
+      time: 'Time',
+      qty: 'Qty',
+      dueDate: 'Due date',
+      status: 'Status',
+    },
+    changeType: {
+      CREATED: 'Created',
+      MODIFIED: 'Modified',
+      CANCELLED: 'Cancelled',
     },
   },
 

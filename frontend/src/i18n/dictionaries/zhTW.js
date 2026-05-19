@@ -110,6 +110,7 @@ const zhTW = {
       due: '交期',
       expected: '完成日期',
       schedule: '排程',
+      createdBy: '創建者',
       actions: '操作',
     },
     selectAllOnPage: '選取本頁全部',
@@ -232,6 +233,10 @@ const zhTW = {
     saveBtn: '儲存變更',
     savingBtn: '儲存中…',
     saveDisabledTooltip: '儲存前需要重新載入',
+
+    conflictTitle: '訂單已被其他人變更',
+    conflictBody: '在您編輯期間，此訂單已被其他使用者修改並儲存。請重新整理後再編輯，以免覆寫他人變更。',
+    conflictReload: '重新整理',
 
     minutesAgo: (n) => `${n} 分鐘前`,
     inDays: (n) => `${n} 天後`,
@@ -366,6 +371,26 @@ const zhTW = {
       customerDue: '客戶交期',
       expectedDone: '預計完成',
       dailyOutput: (qty) => `當日生產：${qty} 片`,
+    },
+  },
+
+  orderHistory: {
+    title: '異動紀錄',
+    loadError: '無法載入紀錄，請稍後再試。',
+    empty: '此訂單目前沒有異動紀錄。',
+    loading: '載入中…',
+    columns: {
+      action: '動作',
+      by: '操作者',
+      time: '時間',
+      qty: '數量',
+      dueDate: '交期',
+      status: '狀態',
+    },
+    changeType: {
+      CREATED: '建立',
+      MODIFIED: '修改',
+      CANCELLED: '取消',
     },
   },
 

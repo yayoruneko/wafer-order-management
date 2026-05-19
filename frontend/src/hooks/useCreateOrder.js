@@ -13,9 +13,9 @@ const HARDCODED_FACTORY_ID = 'factory-001'
 const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
 
 const MS_PER_DAY = 86_400_000
-const POLL_INTERVAL_MS = 1500
-// Extended timeout: covers SCHEDULE_ORDER (~5s) + auto-enqueued RESCHEDULE_ALL (~5s) + buffer
-const POLL_TIMEOUT_MS = 45_000
+const POLL_INTERVAL_MS = 500
+// Covers SCHEDULE_ORDER (~0.5s) + conditional RESCHEDULE_ALL (~0.5s) + queue wait + buffer
+const POLL_TIMEOUT_MS = 30_000
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -31,8 +31,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 //   - timeout (return null → caller treats as ok)
 async function waitForScheduling(orderId) {
   const started = Date.now()
-  let seenDelayed = false          // saw first SCHEDULED + isDelayed=true
-  let wentPendingAfterDelay = false  // went back to PENDING after above
+  let seenDelayed = false
+  let wentPendingAfterDelay = false
 
   while (Date.now() - started < POLL_TIMEOUT_MS) {
     await wait(POLL_INTERVAL_MS)
@@ -45,20 +45,13 @@ async function waitForScheduling(orderId) {
         continue
       }
 
-      // SCHEDULED (or any non-PENDING terminal status)
-      if (!data.isDelayed) return data  // on-time: done
+      if (!data.isDelayed) return data
 
-      // isDelayed = true
       if (!seenDelayed) {
-        // First delayed snapshot: RESCHEDULE_ALL is likely queued, keep waiting
         seenDelayed = true
         continue
       }
-      if (wentPendingAfterDelay) {
-        // RESCHEDULE_ALL completed (saw PENDING in between) and still delayed → final answer
-        return data
-      }
-      // RESCHEDULE_ALL hasn't started yet → keep polling
+      if (wentPendingAfterDelay) return data
     } catch {
       // ignore transient errors
     }
@@ -200,7 +193,6 @@ export default function useCreateOrder() {
 
       const scheduled = await waitForScheduling(orderId)
       if (!scheduled) {
-        // Scheduler still pending — treat as success; the row will appear pending in the list
         return { status: 'ok', orderId }
       }
       if (scheduled.isDelayed) {
@@ -226,7 +218,7 @@ export default function useCreateOrder() {
     try {
       await cancelOrder(orderId)
     } catch {
-      // best effort: order may already be in a non-cancellable state
+      // best effort
     }
   }, [])
 

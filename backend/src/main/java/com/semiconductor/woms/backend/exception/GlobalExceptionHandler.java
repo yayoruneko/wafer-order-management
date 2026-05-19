@@ -1,6 +1,7 @@
 package com.semiconductor.woms.backend.exception;
 
 import com.semiconductor.woms.backend.dto.ApiResponse;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +31,12 @@ public class GlobalExceptionHandler {
                 ex.getReason()
         );
         return new ResponseEntity<>(response, ex.getStatusCode());
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiResponse(409, "訂單已被其他人修改，請重新整理後再編輯"));
     }
 
     // 處理所有未預期的系統錯誤 (500)
