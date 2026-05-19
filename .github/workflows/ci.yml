@@ -62,6 +62,42 @@ jobs:
           SPRING_SQL_INIT_MODE: never
         run: mvn -B -f backend/pom.xml test
 
+  backend-image-build:
+    name: Backend image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: wafer-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  frontend-image-build:
+    name: Frontend image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          tags: wafer-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   frontend-tests:
     name: Frontend unit tests (Vitest)
     runs-on: ubuntu-latest
