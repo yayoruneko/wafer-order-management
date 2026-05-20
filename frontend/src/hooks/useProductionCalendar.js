@@ -105,32 +105,26 @@ export default function useProductionCalendar({ initialDate, today } = {}) {
   }, [cells, factoryData, monthAnchor, todayDate])
 
   const monthSummary = useMemo(() => {
-    const monthDays = monthGrid.filter((c) => c.inMonth && c.count > 0)
-    if (monthDays.length === 0) {
-      return {
-        avgUtilization: 0,
-        deltaVsPrev: 0,
-        fullDays: [],
-        nearFullDays: [],
-        delayedOrders: [],
-      }
-    }
-    const totalUtil = monthDays.reduce((acc, c) => acc + c.utilization, 0)
-    const fullDays = monthDays.filter((c) => c.load === 'full')
-    const nearFullDays = monthDays.filter(
+    const inMonthDays = monthGrid.filter((c) => c.inMonth)
+    const activeDays = inMonthDays.filter((c) => c.count > 0)
+    // 平均使用率 = 當月總使用量 ÷ 當月總產能（含 0 量的天）
+    const totalCount = inMonthDays.reduce((acc, c) => acc + c.count, 0)
+    const totalCapacity = inMonthDays.reduce((acc, c) => acc + c.capacity, 0)
+    const fullDays = activeDays.filter((c) => c.load === 'full')
+    const nearFullDays = activeDays.filter(
       (c) => c.count >= CAPACITY_THRESHOLDS.highLoad && c.load !== 'full',
     )
-    const delayedOrders = monthDays.flatMap((c) =>
+    const delayedOrders = activeDays.flatMap((c) =>
       c.delayedOrders.map((order) => ({ ...order, dayISO: c.iso })),
     )
     return {
-      avgUtilization: totalUtil / monthDays.length,
+      avgUtilization: totalCapacity > 0 ? totalCount / totalCapacity : 0,
       deltaVsPrev: 0,
       fullDays,
       nearFullDays,
       delayedOrders,
     }
-  }, [monthGrid, factoryId])
+  }, [monthGrid])
 
   const selectedDay = useMemo(() => {
     if (!selectedISO) return null

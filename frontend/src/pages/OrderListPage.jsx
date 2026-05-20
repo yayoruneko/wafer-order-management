@@ -40,6 +40,7 @@ export default function OrderListPage() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const { user } = useAuth()
+  const canModify = user?.role !== 'VIEWER'
   const {
     orders,
     total,
@@ -65,6 +66,8 @@ export default function OrderListPage() {
     cancelSelected,
     exportSelected,
     updateOrderField,
+    optimisticCancel,
+    revertOptimisticCancel,
     error,
     retry,
     search,
@@ -74,8 +77,8 @@ export default function OrderListPage() {
     nextPage,
   } = useOrders()
 
-  const tabs = useMemo(
-    () => [
+  const tabs = useMemo(() => {
+    const list = [
       { id: 'all', label: t.orderList.tabs.all, count: viewCounts.all },
       { id: 'delayed', label: t.orderList.tabs.delayed, count: viewCounts.delayed },
       {
@@ -84,9 +87,22 @@ export default function OrderListPage() {
         count: viewCounts.in_production,
       },
       { id: 'mine', label: t.orderList.tabs.mine, count: viewCounts.mine },
-    ],
-    [viewCounts, t],
-  )
+    ]
+    // 歷史訂單 / 已取消 分頁對 VIEWER 隱藏（僅 ADMIN/SUPER_ADMIN 可見）
+    if (user?.role !== 'VIEWER') {
+      list.push({
+        id: 'history',
+        label: t.orderList.tabs.history,
+        count: viewCounts.history,
+      })
+      list.push({
+        id: 'cancelled',
+        label: t.orderList.tabs.cancelled,
+        count: viewCounts.cancelled,
+      })
+    }
+    return list
+  }, [viewCounts, t, user])
 
   const handleEdit = useCallback(
     (order) => navigate(`/orders/${order.id}/edit`),
@@ -129,7 +145,9 @@ export default function OrderListPage() {
   const cancelOrderImmediate = useCallback(
     (order) => {
       const prevStatus = order.status
+      // 立即樂觀更新：列表內這列變 CANCELLED + 把該訂單登記為樂觀取消
       updateOrderField(order.id, { status: 'CANCELLED' })
+      optimisticCancel(order)
 
       if (pendingCancelsRef.current[order.id]) {
         clearTimeout(pendingCancelsRef.current[order.id])
@@ -139,11 +157,14 @@ export default function OrderListPage() {
         delete pendingCancelsRef.current[order.id]
         try {
           await cancelOrderApi(order.id)
+          // 真實寫入後端 → 重新整理 → 清掉樂觀標記
+          await retry()
+          revertOptimisticCancel(order.id)
         } catch {
+          // 失敗回滾
           updateOrderField(order.id, { status: prevStatus })
+          revertOptimisticCancel(order.id)
           toast.error(t.toast.genericError, { id: `cancel-err-${order.id}` })
-        } finally {
-          retry()
         }
       }, 6000)
 
@@ -157,6 +178,7 @@ export default function OrderListPage() {
                 clearTimeout(pendingCancelsRef.current[order.id])
                 delete pendingCancelsRef.current[order.id]
                 updateOrderField(order.id, { status: prevStatus })
+                revertOptimisticCancel(order.id)
                 toast.dismiss(to.id)
                 toast.success(t.toast.cancelUndone(order.id), {
                   id: `undo-${order.id}`,
@@ -171,7 +193,7 @@ export default function OrderListPage() {
         { id: `cancel-${order.id}`, duration: 6000 },
       )
     },
-    [updateOrderField, retry, t],
+    [updateOrderField, optimisticCancel, revertOptimisticCancel, retry, t],
   )
 
   const handleCancel = useCallback(
@@ -274,6 +296,9 @@ export default function OrderListPage() {
                 <Checkbox
                   checked={pageAllSelected}
                   indeterminate={pageSomeSelected}
+                  disabled={
+                    !canModify || view === 'history' || view === 'cancelled'
+                  }
                   onChange={toggleSelectAllOnPage}
                   ariaLabel={t.orderList.selectAllOnPage}
                 />
@@ -397,6 +422,9 @@ export default function OrderListPage() {
                       onUpdateField={updateOrderField}
                       expanded={isExpanded}
                       onToggleExpand={canExpand ? toggleExpand : undefined}
+                      canModify={
+                        canModify && view !== 'history' && view !== 'cancelled'
+                      }
                     />
                     {canExpand && isExpanded ? (
                       <div id={`slots-${o.id}`}>
