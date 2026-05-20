@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { cancelOrder, createOrder, getOrders } from './orderApi'
+import { beforeAll, describe, expect, it } from 'vitest'
+import axios from 'axios'
+import { cancelOrder, createOrder, getOrders, api } from './orderApi'
 
 function toIsoDate(d) {
   const y = d.getFullYear()
@@ -7,6 +8,18 @@ function toIsoDate(d) {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+
+beforeAll(async () => {
+  const resp = await axios.post(`${API_BASE}/auth/login`, {
+    username: 'admin',
+    password: 'password',
+  })
+  // tokenStorage uses window which doesn't exist in the node test env,
+  // so set the bearer token directly on the shared axios instance.
+  api.defaults.headers.common['Authorization'] = `Bearer ${resp.data.accessToken}`
+})
 
 describe('orderApi ↔ backend integration', () => {
   it('creates an order and then lists it', async () => {

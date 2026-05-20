@@ -22,4 +22,5 @@ public class OrderResponse {
     private String scheduleWarning;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String createdByUsername;
 }

@@ -102,10 +102,8 @@ function OrderFiltersBase({ onSearch, onReset }) {
         >
           {t.common.search}
         </button>
-      </div>
-      <div className={styles.filterRowSecond}>
         <button className={styles.secondaryBtn} onClick={handleReset}>
-          {t.common.reset}
+          {t.filters.resetFilters}
         </button>
       </div>
     </div>

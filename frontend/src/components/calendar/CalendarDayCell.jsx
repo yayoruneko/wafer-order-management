@@ -1,14 +1,13 @@
 import { memo } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ChevronRight } from 'lucide-react'
+import useI18n from '../../i18n/useI18n'
 import { calendarStyles as s, loadStyles } from '../../styles/calendarStyles'
 
-function formatCount(n) {
-  return n.toLocaleString('en-US')
-}
-
 function CalendarDayCellBase({ cell, onOpen }) {
+  const { t } = useI18n()
+  const formatCount = (n) => n.toLocaleString(t.locale)
   const ls = loadStyles[cell.load]
-  const clickable = cell.hasDelay
+  const clickable = cell.hasOrders
   const muted = !cell.inMonth
 
   const handleClick = () => {
@@ -29,13 +28,20 @@ function CalendarDayCellBase({ cell, onOpen }) {
   return (
     <div
       className={`${s.cellOuter} ${accentClass} ${cellBg} ${
-        clickable ? s.cellOuterClickable : ''
+        clickable ? `${s.cellOuterClickable} group` : ''
       }`}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
+      title={clickable ? t.calendar.dayCell.viewHint : undefined}
       aria-label={
         clickable
-          ? `${cell.iso} 排程衝突，${cell.delayedOrders.length} 筆訂單延誤`
+          ? cell.hasDelay
+            ? t.calendar.dayCell.ariaOrdersDelayed(
+                cell.iso,
+                cell.orders.length,
+                cell.delayedOrders.length,
+              )
+            : t.calendar.dayCell.ariaOrders(cell.iso, cell.orders.length)
           : undefined
       }
       onClick={handleClick}
@@ -45,7 +51,7 @@ function CalendarDayCellBase({ cell, onOpen }) {
         {cell.isToday ? (
           <div className="flex items-center gap-2">
             <span className={s.cellTodayPill}>{cell.day}</span>
-            <span className={s.cellTodayLabel}>Today</span>
+            <span className={s.cellTodayLabel}>{t.calendar.dayCell.today}</span>
           </div>
         ) : (
           <span
@@ -76,16 +82,23 @@ function CalendarDayCellBase({ cell, onOpen }) {
                 : `${s.cellCount} ${ls.countText}`
             }
           >
-            {formatCount(cell.count)} / {(cell.capacity / 1000).toLocaleString('en-US')}k
+            {formatCount(cell.count)} / {formatCount(cell.capacity)}
           </div>
           {cell.load === 'full' && !muted ? (
             <div className={s.cellTag}>
               {cell.hasDelay
-                ? `${cell.delayedOrders.length} DELAYED`
-                : 'AT CAPACITY'}
+                ? t.calendar.dayCell.delayedTag(cell.delayedOrders.length)
+                : t.calendar.dayCell.atCapacity}
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {clickable ? (
+        <ChevronRight
+          className="absolute bottom-2 right-1.5 h-3.5 w-3.5 text-stone-400 opacity-40 transition-opacity group-hover:opacity-90"
+          aria-hidden="true"
+        />
       ) : null}
 
       <div className={s.cellBar}>

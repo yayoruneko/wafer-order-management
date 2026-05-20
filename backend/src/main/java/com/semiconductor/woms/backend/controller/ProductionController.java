@@ -49,26 +49,27 @@ public class ProductionController {
             DailySlotSummary entry = result.computeIfAbsent(iso, k -> {
                 DailySlotSummary s = new DailySlotSummary();
                 s.setCount(0);
-                s.setDelayedOrders(new ArrayList<>());
+                s.setOrders(new ArrayList<>());
                 return s;
             });
             entry.setCount(entry.getCount() + slot.getQuantity());
 
             orderRepo.findById(slot.getOrderId()).ifPresent(order -> {
-                if (Boolean.TRUE.equals(order.getIsDelayed())) {
-                    SlotOrderInfo info = new SlotOrderInfo();
-                    info.setOrderId(order.getId());
-                    info.setRequestedDate(order.getCustomerDueDate());
-                    info.setRescheduledDate(order.getExpectedDueDate());
-                    info.setDelayDays(order.getDelayDays());
-                    info.setQty(slot.getQuantity());
-                    info.setScheduleWarning(order.getScheduleWarning());
-                    customerRepo.findById(order.getCustomerId()).ifPresent(c -> {
-                        info.setCustomerName(c.getName());
-                        info.setCustomerCode(c.getCustomerCode());
-                    });
-                    entry.getDelayedOrders().add(info);
-                }
+                boolean delayed = Boolean.TRUE.equals(order.getIsDelayed());
+                SlotOrderInfo info = new SlotOrderInfo();
+                info.setOrderId(order.getId());
+                info.setRequestedDate(order.getCustomerDueDate());
+                info.setRescheduledDate(order.getExpectedDueDate());
+                info.setDelayDays(order.getDelayDays() == null ? 0 : order.getDelayDays());
+                info.setQty(slot.getQuantity());
+                info.setScheduleWarning(order.getScheduleWarning());
+                info.setIsDelayed(delayed);
+                info.setCustomerId(order.getCustomerId());
+                customerRepo.findById(order.getCustomerId()).ifPresent(c -> {
+                    info.setCustomerName(c.getName());
+                    info.setCustomerCode(c.getCustomerCode());
+                });
+                entry.getOrders().add(info);
             });
         }
 

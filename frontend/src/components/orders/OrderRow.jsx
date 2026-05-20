@@ -1,14 +1,14 @@
 import { memo } from 'react'
-import { Pencil, X } from 'lucide-react'
+import { ChevronRight, Pencil, X } from 'lucide-react'
 import { Cell } from './Cell'
 import StatusPill from './StatusPill'
 import CustomerLogo from './CustomerLogo'
 import ScheduleCell from './ScheduleCell'
 import InlineEditCell from './InlineEditCell'
 import Checkbox from './Checkbox'
+import useI18n from '../../i18n/useI18n'
 import {
   colWidths,
-  densityRow,
   formatDate,
   formatQty,
   styles,
@@ -16,7 +16,6 @@ import {
 
 function OrderRowBase({
   order,
-  density,
   selected,
   onToggleSelect,
   onEdit,
@@ -25,8 +24,10 @@ function OrderRowBase({
   expanded = false,
   onToggleExpand,
 }) {
+  const { t } = useI18n()
   const cancelled = order.status === 'CANCELLED'
   const delayed = order.delayedDays > 0 && !cancelled
+  const expandable = !cancelled && !!onToggleExpand
   const strike = cancelled ? styles.cellStrike : ''
   const baseTextStrong = cancelled
     ? `${styles.cellTextStrong} ${styles.cellStrike}`
@@ -40,24 +41,68 @@ function OrderRowBase({
       ? styles.cellRed
       : styles.cellText
 
-  const rowClass = `${delayed ? styles.rowDelayed : styles.row} ${densityRow[density]} ${
-    selected ? styles.rowSelected : ''
-  }`
+  const rowClass = `${delayed ? styles.rowDelayed : styles.row} h-14 ${
+    expandable ? 'cursor-pointer' : ''
+  } ${selected ? styles.rowSelected : ''}`
+
+  const handleRowClick = (e) => {
+    if (!expandable) return
+    if (e.target.closest('button, input, label, a, [data-no-expand]')) return
+    onToggleExpand?.(order.id)
+  }
 
   return (
-    <div className={rowClass}>
+    <div
+      className={rowClass}
+      onClick={handleRowClick}
+      title={expandable ? t.orderList.expandHint : undefined}
+    >
       {delayed && <div className={styles.rowAccentDelayed} />}
 
-      <Cell className={`${colWidths.select} justify-center`}>
+      <Cell className={`${colWidths.select} justify-center`} data-no-expand>
         <Checkbox
           checked={!!selected}
           onChange={() => onToggleSelect?.(order.id)}
-          ariaLabel={`Select ${order.id}`}
+          ariaLabel={t.orderList.selectOrder(order.id)}
         />
       </Cell>
 
       <Cell className={colWidths.id}>
-        <span className={baseTextStrong}>{order.id}</span>
+        <div className={styles.idCellRow}>
+          {expandable ? (
+            <button
+              type="button"
+              className={styles.idExpandBtn}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleExpand?.(order.id)
+              }}
+              aria-expanded={expanded}
+              aria-controls={`slots-${order.id}`}
+              aria-label={
+                expanded ? t.orderSlots.toggleHide : t.orderSlots.toggleShow
+              }
+              title={expanded ? t.orderSlots.toggleHide : t.orderSlots.toggleShow}
+            >
+              <ChevronRight
+                className={
+                  expanded ? styles.idExpandIconOpen : styles.idExpandIcon
+                }
+              />
+            </button>
+          ) : null}
+          <span className={baseTextStrong}>
+            {(() => {
+              const parts = order.id.split('-')
+              if (parts.length >= 3) {
+                const prefix = parts.slice(0, 2).join('-') + '-'
+                const suffix = parts.slice(2).join('-')
+                return <><span className="whitespace-nowrap">{prefix}</span><br />{suffix}</>
+              }
+              return order.id
+            })()}
+          </span>
+        </div>
       </Cell>
 
       <Cell className={colWidths.customer}>
@@ -78,7 +123,7 @@ function OrderRowBase({
         </div>
       </Cell>
 
-      <Cell className={colWidths.qty}>
+      <Cell className={colWidths.qty} data-no-expand>
         <InlineEditCell
           value={order.qty}
           display={formatQty(order.qty)}
@@ -98,20 +143,22 @@ function OrderRowBase({
         <StatusPill status={order.status} />
       </Cell>
 
-      <Cell className={colWidths.due}>
+      <Cell className={colWidths.due} data-no-expand>
         <InlineEditCell
           value={order.dueDate ?? ''}
-          display={formatDate(order.dueDate)}
+          display={formatDate(order.dueDate, t.locale)}
           type="date"
           disabled={cancelled}
-          textClassName={baseText}
+          textClassName={`${baseText} whitespace-nowrap`}
           onCommit={(v) => onUpdateField?.(order.id, { dueDate: v })}
         />
       </Cell>
 
       <Cell className={colWidths.exp}>
-        <span className={expectedClass}>
-          {cancelled ? formatDate(order.dueDate) : formatDate(order.expected)}
+        <span className={`${expectedClass} whitespace-nowrap`}>
+          {cancelled
+            ? formatDate(order.dueDate, t.locale)
+            : formatDate(order.expected, t.locale)}
         </span>
       </Cell>
 
@@ -130,12 +177,18 @@ function OrderRowBase({
         )}
       </Cell>
 
-      <Cell className={`${colWidths.actions} gap-1`}>
+      <Cell className={colWidths.createdBy}>
+        <span className={`${styles.cellText} truncate font-mono text-[11px]`}>
+          {order.createdBy || '—'}
+        </span>
+      </Cell>
+
+      <Cell className={`${colWidths.actions} gap-1`} data-no-expand>
         <button
           className={styles.iconBtn}
           onClick={() => onEdit?.(order)}
-          aria-label={`Edit order ${order.id}`}
-          title={`Edit order ${order.id}`}
+          aria-label={t.orderList.editOrderAria(order.id)}
+          title={t.orderList.editOrderAria(order.id)}
         >
           <Pencil className={styles.pencilIcon} />
         </button>
@@ -143,8 +196,8 @@ function OrderRowBase({
           <button
             className={styles.iconBtnDanger}
             onClick={() => onCancel?.(order)}
-            aria-label={`Cancel order ${order.id}`}
-            title={`Cancel order ${order.id}`}
+            aria-label={t.orderList.cancelOrderAria(order.id)}
+            title={t.orderList.cancelOrderAria(order.id)}
           >
             <X className={styles.closeIcon} />
           </button>

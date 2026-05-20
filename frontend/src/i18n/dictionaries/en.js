@@ -16,6 +16,7 @@ const en = {
   nav: {
     orders: 'Orders',
     calendar: 'Calendar',
+    users: 'Users',
     signOut: 'Sign out',
     switchLanguage: 'Switch language',
   },
@@ -41,6 +42,14 @@ const en = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     copyright: (year) => `© ${year} WOMS`,
+    demoOnly: 'Not available in the demo environment',
+    demo: {
+      title: 'Demo accounts',
+      note: 'Password is always "demo" — click to sign in instantly',
+      super: 'Super admin',
+      admin: 'Admin',
+      viewer: 'Viewer',
+    },
   },
 
   toast: {
@@ -54,11 +63,14 @@ const en = {
     exportSuccess: (n) => `Exported ${n} orders to CSV`,
     exportEmpty: 'Select orders to export first',
     genericError: 'Something went wrong. Please try again.',
-    notifiedCustomer: (customer, id) => `Notified ${customer} (${id})`,
+    notifiedCustomer: (customer, id) => `(demo) Notified ${customer} (${id})`,
     rescheduleAllTriggered: 'Global rescheduling triggered',
+    undo: 'Undo',
+    cancelUndone: (id) => (id ? `Order ${id} restored` : 'Cancellation undone'),
   },
 
   cancelDialog: {
+    // IN_PRODUCTION warning variant
     titleSingle: 'This order is in production!',
     titleBulk: 'Selection includes orders in production!',
     subtitleSingle:
@@ -67,10 +79,16 @@ const en = {
       `${n} orders are in production. Cancelling will release used capacity`,
     body: 'Cancelling will release used capacity, affect other scheduled orders, and cannot be undone. Continue?',
     affectedHeading: 'Affected in-production orders',
+    affectedHeadingGeneral: 'Orders to be cancelled',
     moreCount: (n) => `…and ${n} more`,
     bulkBreakdown: (inProd, total) =>
       `${inProd} of ${total} selected orders are in production`,
     irreversibleNote: 'This action cannot be undone.',
+    // General confirmation variant
+    titleSingleConfirm: 'Confirm order cancellation?',
+    subtitleSingleConfirm: 'This action cannot be undone. Continue?',
+    titleBulkConfirm: (n) => `Cancel ${n} orders?`,
+    subtitleBulkConfirm: (n) => `${n} selected orders will all be cancelled`,
     cancelBtn: 'Back',
     confirmBtn: 'Confirm cancel order',
     confirmBtnBulk: (n) => `Confirm cancel ${n} orders`,
@@ -84,7 +102,7 @@ const en = {
     createOrder: 'Create order',
     tabs: {
       all: 'All',
-      delayed: 'Delayed only',
+      delayed: 'Delayed',
       in_production: 'In production',
       mine: 'My orders',
     },
@@ -94,8 +112,9 @@ const en = {
       qty: 'Qty',
       status: 'Status',
       due: 'Due Date',
-      expected: 'Expected',
+      expected: 'Completion Date',
       schedule: 'Schedule',
+      createdBy: 'Created by',
       actions: 'Actions',
     },
     selectAllOnPage: 'Select all on page',
@@ -112,6 +131,14 @@ const en = {
     pageAria: (n) => `Page ${n}`,
     prevPageAria: 'Previous page',
     nextPageAria: 'Next page',
+    columnHints: {
+      due: 'Date the customer requested delivery (customer commitment)',
+      expected: 'Completion date the system calculated from capacity scheduling',
+    },
+    editHint: 'Double-click to edit',
+    expandHint: 'Click this row to expand the production schedule',
+    loadError: 'Could not load orders. Check your connection and retry.',
+    retry: 'Retry',
   },
 
   filters: {
@@ -122,19 +149,14 @@ const en = {
     prevMonthAria: 'Previous month',
     nextMonthAria: 'Next month',
     dowShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    resetFilters: 'Reset filters',
   },
 
   bulk: {
     selected: (n) => `${n} ${n === 1 ? 'order' : 'orders'} selected`,
     exportSelected: 'Export selected',
-    cancelSelected: 'Cancel selected',
+    cancelSelected: 'Cancel selected orders',
     clearAria: 'Clear selection',
-  },
-
-  density: {
-    label: 'Row density',
-    comfortable: 'Comfortable',
-    compact: 'Compact',
   },
 
   stats: {
@@ -158,6 +180,22 @@ const en = {
     delayedDays: (d) => `Delayed ${d}d`,
     showConflict: 'Show conflict details',
     hideConflict: 'Hide conflict details',
+  },
+
+  orderSlots: {
+    title: 'Production schedule',
+    summary: (days, qty) => `${days} day${days === 1 ? '' : 's'} · ${qty} wafers`,
+    columns: {
+      date: 'Date',
+      qty: 'Quantity',
+      share: 'Share',
+    },
+    empty: 'No production slots assigned yet.',
+    loading: 'Loading schedule…',
+    loadError: 'Could not load schedule. Please try again.',
+    regionAria: (id) => `Production schedule for ${id}`,
+    toggleShow: 'Show production dates',
+    toggleHide: 'Hide production dates',
   },
 
   editOrder: {
@@ -195,7 +233,7 @@ const en = {
       `Production typically requires ${min}–${max} weeks lead time`,
 
     scheduleWarning:
-      'Note: changing quantity or due date will release the original factory capacity and trigger a global reschedule, which may shift the final scheduled date.',
+      'Note: changing quantity or due date will trigger rescheduling, which may shift the final delivery date.',
 
     cancelBtn: 'Cancel',
     reloadBtn: 'Reload data',
@@ -203,6 +241,10 @@ const en = {
     saveBtn: 'Save changes',
     savingBtn: 'Saving…',
     saveDisabledTooltip: 'Reload required before saving',
+
+    conflictTitle: 'Order changed by another user',
+    conflictBody: 'This order was modified and saved by another user while you were editing. Reload to get the latest version before making changes.',
+    conflictReload: 'Reload page',
 
     minutesAgo: (n) => `${n} min ago`,
     inDays: (n) => `in ${n} days`,
@@ -295,6 +337,106 @@ const en = {
     footerHint:
       'Click any day to view scheduled orders · Drag-and-drop to reschedule',
     lastSync: (sec) => `Last sync ${sec} sec ago`,
+    today: 'Today',
+    factory: 'Factory',
+    legendNormal: 'Normal',
+    legendNearFull: 'Near-full',
+    legendFull: 'Full',
+    prevMonthAria: 'Previous month',
+    nextMonthAria: 'Next month',
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    monthFormat: { year: 'numeric', month: 'long' },
+    dateFormat: { year: 'numeric', month: 'short', day: 'numeric' },
+    stats: {
+      avgUtilization: 'Avg utilization',
+      fullDays: 'Full days',
+      nearFullDays: 'Near-full days',
+      delayedOrders: 'Delayed orders',
+      flatVsPrev: 'Flat vs last month',
+      deltaVsPrev: (d) => `${d > 0 ? '+' : ''}${d}% vs last month`,
+      noFullDays: 'No full days this month',
+      fullDaysHint: (month, days) => `${month} ${days}`,
+      nearFullHint: '≥ 90% load',
+      actionNeeded: 'action needed',
+      noAction: 'no action',
+    },
+    dayCell: {
+      today: 'Today',
+      viewHint: 'Click to view orders',
+      delayedTag: (n) => `${n} DELAYED`,
+      atCapacity: 'AT CAPACITY',
+      ariaOrders: (iso, n) => `${iso}: ${n} orders`,
+      ariaOrdersDelayed: (iso, n, d) =>
+        `${iso}: ${n} orders, ${d} delayed`,
+    },
+    popover: {
+      title: (date) => `Day schedule — ${date}`,
+      subtitle: (count, capacity, orders) =>
+        `Capacity ${count} / ${capacity} · ${orders} orders`,
+      delayedSuffix: (n) => ` (${n} delayed)`,
+      empty: 'No orders scheduled this day',
+      close: 'Close',
+      closeAria: 'Close',
+      delayPill: (d) => `+${d}d delayed`,
+      onTrack: 'On track',
+      customerDue: 'Customer due',
+      expectedDone: 'Expected',
+      dailyOutput: (qty) => `Daily output: ${qty} wafers`,
+    },
+  },
+
+  orderHistory: {
+    title: 'History',
+    loadError: 'Could not load history. Please try again.',
+    empty: 'No history for this order yet.',
+    loading: 'Loading…',
+    columns: {
+      action: 'Action',
+      by: 'By',
+      time: 'Time',
+      qty: 'Qty',
+      dueDate: 'Due date',
+      status: 'Status',
+    },
+    changeType: {
+      CREATED: 'Created',
+      MODIFIED: 'Modified',
+      CANCELLED: 'Cancelled',
+    },
+  },
+
+  userAdmin: {
+    title: 'User management',
+    subtitle: 'Manage user roles and permissions',
+    columns: {
+      username: 'Username',
+      displayName: 'Name',
+      role: 'Role',
+      createdAt: 'Created',
+      actions: 'Actions',
+    },
+    roleLabels: {
+      SUPER_ADMIN: 'Super admin',
+      ADMIN: 'Admin',
+      VIEWER: 'Viewer',
+    },
+    actions: {
+      promote: 'Promote to admin',
+      demote: 'Demote to viewer',
+      pending: 'Working…',
+    },
+    badgeSelf: 'You',
+    superLocked: 'Super admin role cannot be changed',
+    loadError: 'Could not load users. Please try again.',
+    forbiddenTitle: 'No access',
+    forbiddenBody: 'Only super admins can change user roles.',
+    backToOrders: 'Back to orders',
+    toast: {
+      promoteSuccess: (name) => `${name} promoted to admin`,
+      demoteSuccess: (name) => `${name} demoted to viewer`,
+      updateError: 'Failed to update user. Please try again.',
+    },
+    empty: 'No other users to manage.',
   },
 }
 

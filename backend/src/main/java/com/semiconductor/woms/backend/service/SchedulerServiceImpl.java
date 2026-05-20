@@ -1,6 +1,7 @@
 package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.model.DailyCapacityUsage;
+import com.semiconductor.woms.backend.model.Order;
 import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.repository.DailyCapacityUsageRepository;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -89,8 +91,47 @@ public class SchedulerServiceImpl implements SchedulerService {
     }
 
     @Override
+    @Transactional
     public void rescheduleAll() {
-        // Week 2 實作全局重排
+        // 1. 抓 PENDING + SCHEDULED 訂單，依 EDD 升序、相同交期按 createdAt FIFO 排序
+        List<Order> orders = orderRepo
+                .findByStatusIn(List.of(OrderStatus.PENDING, OrderStatus.SCHEDULED))
+                .stream()
+                .sorted(Comparator.comparing(Order::getCustomerDueDate)
+                        .thenComparing(Order::getCreatedAt))
+                .toList();
+
+        if (orders.isEmpty()) return;
+
+        // 2. 釋放所有 SCHEDULED 訂單的 slot，歸還產能，重置為 PENDING
+        for (Order order : orders) {
+            if (order.getStatus() == OrderStatus.SCHEDULED) {
+                List<ProductionSlot> slots = slotRepo.findByOrderId(order.getId());
+                for (ProductionSlot slot : slots) {
+                    decrementCapacityUsage(slot.getFactoryId(), slot.getSlotDate(), slot.getQuantity());
+                }
+                slotRepo.deleteByOrderId(order.getId());
+
+                order.setRemainingQuantity(order.getQuantity());
+                order.setStatus(OrderStatus.PENDING);
+                order.setLastSlotDate(null);
+                order.setExpectedDueDate(null);
+                order.setIsDelayed(false);
+                order.setDelayDays(0);
+                order.setScheduleWarning(null);
+                orderRepo.save(order);
+            }
+        }
+
+        // 3. 依 EDD+FIFO 順序逐筆重新排程
+        for (Order order : orders) {
+            scheduleOrder(order.getId());
+        }
+    }
+
+    @Override
+    public void releaseCapacity(String factoryId, LocalDate date, int quantity) {
+        decrementCapacityUsage(factoryId, date, quantity);
     }
 
     @Override
@@ -100,7 +141,7 @@ public class SchedulerServiceImpl implements SchedulerService {
                 .orElse(DAILY_CAPACITY);
     }
 
-    // 更新每日產能使用量
+    // 更新每日產能使用量（加）
     private void updateCapacityUsage(String factoryId, LocalDate date, int quantity) {
         DailyCapacityUsage usage = capacityRepo
                 .findByFactoryIdAndSlotDate(factoryId, date)
@@ -113,5 +154,18 @@ public class SchedulerServiceImpl implements SchedulerService {
                 });
         usage.setUsedQuantity(usage.getUsedQuantity() + quantity);
         capacityRepo.save(usage);
+    }
+
+    // 歸還產能（減）：釋放 slot 時呼叫
+    private void decrementCapacityUsage(String factoryId, LocalDate date, int quantity) {
+        capacityRepo.findByFactoryIdAndSlotDate(factoryId, date).ifPresent(usage -> {
+            int newUsed = usage.getUsedQuantity() - quantity;
+            if (newUsed <= 0) {
+                capacityRepo.delete(usage);
+            } else {
+                usage.setUsedQuantity(newUsed);
+                capacityRepo.save(usage);
+            }
+        });
     }
 }

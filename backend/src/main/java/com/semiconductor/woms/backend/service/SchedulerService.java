@@ -12,4 +12,7 @@ public interface SchedulerService {
 
     // 查詢某工廠某天剩餘產能
     int getAvailableCapacity(String factoryId, LocalDate date);
+
+    // 歸還產能（釋放 slot 時由 OrderService 呼叫）
+    void releaseCapacity(String factoryId, LocalDate date, int quantity);
 }

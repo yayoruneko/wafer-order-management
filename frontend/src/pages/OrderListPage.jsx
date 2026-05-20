@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus } from 'lucide-react'
@@ -6,22 +6,21 @@ import TopNav from '../components/TopNav'
 import { HeaderCell } from '../components/orders/Cell'
 import OrderRow from '../components/orders/OrderRow'
 import OrderConflictAccordion from '../components/orders/OrderConflictAccordion'
+import OrderSlotsAccordion from '../components/orders/OrderSlotsAccordion'
+import OrderHistoryAccordion from '../components/orders/OrderHistoryAccordion'
 import OrderFilters from '../components/orders/OrderFilters'
 import PageBtn from '../components/orders/PageBtn'
 import StatsCards from '../components/orders/StatsCards'
 import FilterTabs from '../components/orders/FilterTabs'
 import BulkActionBar from '../components/orders/BulkActionBar'
-import DensityToggle from '../components/orders/DensityToggle'
 import SortableHeader from '../components/orders/SortableHeader'
 import Checkbox from '../components/orders/Checkbox'
 import CancelOrderDialog from '../components/orders/CancelOrderDialog'
 import useOrders from '../hooks/useOrders'
+import { cancelOrder as cancelOrderApi } from '../api/orderApi'
 import useI18n from '../i18n/useI18n'
-import {
-  colWidths,
-  densityHeader,
-  styles,
-} from '../styles/orderListStyles'
+import useAuth from '../auth/useAuth'
+import { colWidths, styles } from '../styles/orderListStyles'
 
 function buildPageWindow(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -40,6 +39,7 @@ function buildPageWindow(current, total) {
 export default function OrderListPage() {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const { user } = useAuth()
   const {
     orders,
     total,
@@ -65,8 +65,8 @@ export default function OrderListPage() {
     cancelSelected,
     exportSelected,
     updateOrderField,
-    density,
-    setDensity,
+    error,
+    retry,
     search,
     reset,
     goPage,
@@ -92,6 +92,13 @@ export default function OrderListPage() {
     (order) => navigate(`/orders/${order.id}/edit`),
     [navigate],
   )
+
+  const pendingCancelsRef = useRef({})
+
+  useEffect(() => {
+    const pending = pendingCancelsRef.current
+    return () => { Object.values(pending).forEach(clearTimeout) }
+  }, [])
 
   const [confirmState, setConfirmState] = useState(null)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
@@ -121,40 +128,72 @@ export default function OrderListPage() {
 
   const cancelOrderImmediate = useCallback(
     (order) => {
+      const prevStatus = order.status
       updateOrderField(order.id, { status: 'CANCELLED' })
-      toast.success(t.toast.cancelOrderSuccess(order.id), {
-        id: `cancel-${order.id}`,
-      })
+
+      if (pendingCancelsRef.current[order.id]) {
+        clearTimeout(pendingCancelsRef.current[order.id])
+      }
+
+      pendingCancelsRef.current[order.id] = setTimeout(async () => {
+        delete pendingCancelsRef.current[order.id]
+        try {
+          await cancelOrderApi(order.id)
+        } catch {
+          updateOrderField(order.id, { status: prevStatus })
+          toast.error(t.toast.genericError, { id: `cancel-err-${order.id}` })
+        } finally {
+          retry()
+        }
+      }, 6000)
+
+      toast.success(
+        (to) => (
+          <span className="flex items-center gap-3">
+            {t.toast.cancelOrderSuccess(order.id)}
+            <button
+              type="button"
+              onClick={() => {
+                clearTimeout(pendingCancelsRef.current[order.id])
+                delete pendingCancelsRef.current[order.id]
+                updateOrderField(order.id, { status: prevStatus })
+                toast.dismiss(to.id)
+                toast.success(t.toast.cancelUndone(order.id), {
+                  id: `undo-${order.id}`,
+                })
+              }}
+              className="shrink-0 rounded bg-white/15 px-2 py-0.5 text-xs font-semibold text-white transition hover:bg-white/25"
+            >
+              {t.toast.undo}
+            </button>
+          </span>
+        ),
+        { id: `cancel-${order.id}`, duration: 6000 },
+      )
     },
-    [updateOrderField, t],
+    [updateOrderField, retry, t],
   )
 
   const handleCancel = useCallback(
     (order) => {
-      if (order.status === 'IN_PRODUCTION') {
-        setConfirmState({ mode: 'single', order })
-        return
-      }
-      cancelOrderImmediate(order)
+      const hasInProdWarning = order.status === 'IN_PRODUCTION'
+      setConfirmState({ mode: 'single', order, hasInProdWarning })
     },
-    [cancelOrderImmediate],
+    [],
   )
 
   const handleCancelSelected = useCallback(() => {
     const n = selectedCount
     if (!n) return
     const inProd = selectedOrders.filter((o) => o.status === 'IN_PRODUCTION')
-    if (inProd.length > 0) {
-      setConfirmState({
-        mode: 'bulk',
-        inProductionOrders: inProd,
-        totalSelected: n,
-      })
-      return
-    }
-    cancelSelected()
-    toast.success(t.toast.bulkCancelSuccess(n), { id: 'bulk-cancel' })
-  }, [cancelSelected, selectedCount, selectedOrders, t])
+    const hasInProdWarning = inProd.length > 0
+    setConfirmState({
+      mode: 'bulk',
+      inProductionOrders: hasInProdWarning ? inProd : selectedOrders,
+      totalSelected: n,
+      hasInProdWarning,
+    })
+  }, [selectedCount, selectedOrders])
 
   const closeConfirm = useCallback(() => setConfirmState(null), [])
 
@@ -195,15 +234,17 @@ export default function OrderListPage() {
             <h1 className={styles.pageTitle}>{t.orderList.title}</h1>
             <p className={styles.pageSubtitle}>{t.orderList.subtitle}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              className={styles.primaryBtn}
-              onClick={() => navigate('/orders/new')}
-            >
-              <Plus className={styles.plusIcon} />
-              {t.orderList.createOrder}
-            </button>
-          </div>
+          {user?.role !== 'VIEWER' ? (
+            <div className="flex items-center gap-3">
+              <button
+                className={styles.primaryBtn}
+                onClick={() => navigate('/orders/new')}
+              >
+                <Plus className={styles.plusIcon} />
+                {t.orderList.createOrder}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <StatsCards
@@ -224,17 +265,11 @@ export default function OrderListPage() {
             onExportSelected={handleExportSelected}
             onClear={clearSelection}
           />
-        ) : (
-          <div className="flex items-center justify-end">
-            <DensityToggle value={density} onChange={setDensity} />
-          </div>
-        )}
+        ) : null}
 
         <div className={styles.tableWrap}>
           <div className={styles.tableBox}>
-            <div
-              className={`${styles.tableHeader} ${densityHeader[density]}`}
-            >
+            <div className={`${styles.tableHeader} h-12`}>
               <HeaderCell className={`${colWidths.select} justify-center`}>
                 <Checkbox
                   checked={pageAllSelected}
@@ -289,6 +324,7 @@ export default function OrderListPage() {
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
+                  hint={t.orderList.columnHints.due}
                 >
                   {t.orderList.columns.due}
                 </SortableHeader>
@@ -299,6 +335,7 @@ export default function OrderListPage() {
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
+                  hint={t.orderList.columnHints.expected}
                 >
                   {t.orderList.columns.expected}
                 </SortableHeader>
@@ -313,39 +350,66 @@ export default function OrderListPage() {
                   {t.orderList.columns.schedule}
                 </SortableHeader>
               </HeaderCell>
+              <HeaderCell className={colWidths.createdBy}>
+                <SortableHeader
+                  field="createdBy"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                >
+                  {t.orderList.columns.createdBy}
+                </SortableHeader>
+              </HeaderCell>
               <HeaderCell className={colWidths.actions}>
                 <SortableHeader>{t.orderList.columns.actions}</SortableHeader>
               </HeaderCell>
             </div>
 
-            {orders.length === 0 ? (
+            {error ? (
+              <div className="flex h-32 flex-col items-center justify-center gap-3 text-sm text-stone-500">
+                <span>{t.orderList.loadError}</span>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className={styles.secondaryBtn}
+                >
+                  {t.orderList.retry}
+                </button>
+              </div>
+            ) : orders.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-stone-400">
                 {t.orderList.emptyResults}
               </div>
             ) : (
               orders.map((o) => {
-                const isDelayed =
-                  o.delayedDays > 0 && o.status !== 'CANCELLED'
+                const isCancelled = o.status === 'CANCELLED'
+                const isDelayed = o.delayedDays > 0 && !isCancelled
                 const isExpanded = expandedIds.has(o.id)
+                const canExpand = !isCancelled
                 return (
                   <div key={o.id} id={`conflict-${o.id}`}>
                     <OrderRow
                       order={o}
-                      density={density}
                       selected={selectedIds.has(o.id)}
                       onToggleSelect={toggleSelect}
                       onEdit={handleEdit}
                       onCancel={handleCancel}
                       onUpdateField={updateOrderField}
                       expanded={isExpanded}
-                      onToggleExpand={isDelayed ? toggleExpand : undefined}
+                      onToggleExpand={canExpand ? toggleExpand : undefined}
                     />
-                    {isDelayed && isExpanded ? (
-                      <OrderConflictAccordion
-                        order={o}
-                        onReviewDelay={handleReviewDelay}
-                        onNotifyCustomer={handleNotifyCustomer}
-                      />
+                    {canExpand && isExpanded ? (
+                      <div id={`slots-${o.id}`}>
+                        <OrderSlotsAccordion order={o} />
+                        {isDelayed ? (
+                          <OrderConflictAccordion
+                            order={o}
+                            onReviewDelay={handleReviewDelay}
+                            onNotifyCustomer={handleNotifyCustomer}
+                          />
+                        ) : null}
+                        <OrderHistoryAccordion order={o} />
+                      </div>
                     ) : null}
                   </div>
                 )
@@ -408,6 +472,7 @@ export default function OrderListPage() {
         order={confirmState?.order || null}
         inProductionOrders={confirmState?.inProductionOrders || []}
         totalSelected={confirmState?.totalSelected || 0}
+        hasInProdWarning={confirmState?.hasInProdWarning || false}
         onClose={closeConfirm}
         onConfirm={confirmCancel}
       />

@@ -23,29 +23,20 @@ export const statusBadge = {
 
 export const colWidths = {
   select: 'w-[44px]',
-  id: 'w-[110px]',
+  id: 'w-[185px]',
   customer: 'w-[200px]',
   qty: 'w-[90px]',
-  status: 'w-[150px]',
-  due: 'w-[120px]',
-  exp: 'w-[120px]',
-  schedule: 'w-[130px]',
+  status: 'w-[140px]',
+  due: 'w-[130px]',
+  exp: 'w-[130px]',
+  schedule: 'w-[120px]',
+  createdBy: 'w-[130px]',
   actions: 'w-[100px]',
-}
-
-export const densityRow = {
-  comfortable: 'h-14',
-  compact: 'h-10',
-}
-
-export const densityHeader = {
-  comfortable: 'h-12',
-  compact: 'h-10',
 }
 
 export const styles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
-  shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
+  shell: 'mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7',
 
   // Page header
   headerRow: 'flex items-start justify-between',
@@ -93,23 +84,15 @@ export const styles = {
   bulkBtnDanger:
     'inline-flex h-8 items-center gap-1.5 rounded-md bg-red-500 px-3 text-xs font-medium text-white hover:bg-red-600 transition',
 
-  // Density toggle
-  densityWrap:
-    'inline-flex items-center rounded-md border border-stone-300 bg-white p-0.5',
-  densityBtn:
-    'inline-flex h-7 items-center rounded px-2.5 text-xs font-medium text-stone-500 hover:text-stone-800 transition',
-  densityBtnActive:
-    'inline-flex h-7 items-center rounded bg-stone-900 px-2.5 text-xs font-semibold text-white',
-
   // Table
   tableWrap: '',
   tableBox:
-    'overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
+    'mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-stone-200/70 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
   tableHeader: 'flex items-center bg-[#EFEAE0]/70 border-b border-stone-200/70',
   headerCellText:
-    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500',
+    'inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wider text-stone-500',
   headerCellBtn:
-    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-stone-500 hover:text-stone-800 transition cursor-pointer',
+    'inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wider text-stone-500 hover:text-stone-800 transition cursor-pointer',
   sortIcon: 'h-3 w-3 text-stone-400',
   sortIconActive: 'h-3 w-3 text-stone-900',
 
@@ -150,7 +133,7 @@ export const styles = {
   conflictWrap:
     'relative border-b border-stone-100 bg-red-50/30 last:border-b-0',
   conflictAccent: 'absolute left-0 top-0 h-full w-[3px] bg-red-400',
-  conflictInner: 'flex flex-col gap-3 px-5 py-4 pl-6',
+  conflictInner: 'flex flex-col gap-3 pl-[82px] pr-5 py-4',
   conflictHeader: 'flex items-start gap-2.5',
   conflictIconWrap:
     'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600',
@@ -175,6 +158,36 @@ export const styles = {
     'inline-flex h-8 items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 text-[12px] font-medium text-red-600 hover:bg-red-50 transition',
   conflictBtnIcon: 'h-3.5 w-3.5',
 
+  // Order id expand chevron
+  idCellRow: 'flex items-center gap-1.5 min-w-0',
+  idExpandBtn:
+    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition',
+  idExpandIcon: 'h-3.5 w-3.5 transition-transform',
+  idExpandIconOpen: 'h-3.5 w-3.5 rotate-90 transition-transform',
+
+  // Slot accordion
+  slotsWrap:
+    'relative border-b border-stone-100 bg-stone-50/70 last:border-b-0',
+  slotsInner: 'flex flex-col gap-3 pl-[82px] pr-6 py-4',
+  slotsTitle:
+    'text-[11px] font-semibold uppercase tracking-wider text-stone-500',
+  slotsSummary: 'text-[12px] text-stone-500',
+  slotsTableHead:
+    'grid grid-cols-3 gap-3 border-b border-stone-200 pb-1 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400',
+  slotsRow:
+    'grid grid-cols-3 items-center gap-3 border-b border-stone-100 py-1.5 last:border-b-0 text-center text-[13px] text-stone-800',
+  slotsRowDate: 'font-medium text-stone-900',
+  slotsRowQty: 'font-mono text-stone-800',
+  slotsRowBar:
+    'flex items-center justify-center gap-2 text-[11px] font-semibold',
+  slotsBarTrack:
+    'h-1.5 w-[120px] overflow-hidden rounded-full',
+  slotsBarFill: 'h-full rounded-full',
+  slotsEmpty: 'text-[12px] text-stone-400',
+  slotsLoading:
+    'inline-flex items-center gap-2 text-[12px] text-stone-400',
+  slotsError: 'text-[12px] text-red-500',
+
   // Status pill
   statusPill:
     'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium',
@@ -194,6 +207,8 @@ export const styles = {
     'h-7 w-full rounded border border-stone-900 bg-white px-2 text-[13px] text-stone-900 outline-none',
   inlineCellHover:
     'cursor-text rounded px-1 -mx-1 hover:bg-stone-100 transition',
+  inlineEditable:
+    'cursor-text rounded px-1 -mx-1 border-b border-dotted border-stone-300 hover:bg-stone-100 hover:border-stone-400 transition',
 
   // Filter inputs
   filterInput:
@@ -257,11 +272,11 @@ export const dateRangePickerStyles = {
 export const dimmedText = (cancelled) =>
   cancelled ? 'text-stone-400' : 'text-stone-900'
 
-export function formatDate(iso) {
+export function formatDate(iso, locale = 'en-US') {
   if (!iso) return '—'
   const d = new Date(iso + 'T00:00:00')
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

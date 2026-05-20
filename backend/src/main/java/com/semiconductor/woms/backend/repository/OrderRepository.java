@@ -13,6 +13,8 @@ public interface OrderRepository extends JpaRepository<Order, String> {
 
     List<Order> findByStatus(OrderStatus status);
 
+    List<Order> findByStatusIn(List<OrderStatus> statuses);
+
     List<Order> findByIsDelayedTrue();
 
     List<Order> findByCustomerId(String customerId);

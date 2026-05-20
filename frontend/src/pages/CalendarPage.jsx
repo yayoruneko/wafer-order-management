@@ -1,6 +1,3 @@
-import { useCallback } from 'react'
-import toast from 'react-hot-toast'
-import { RefreshCw } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import useProductionCalendar from '../hooks/useProductionCalendar'
 import CalendarStats from '../components/calendar/CalendarStats'
@@ -13,14 +10,12 @@ import { calendarStyles as s } from '../styles/calendarStyles'
 export default function CalendarPage() {
   const { t } = useI18n()
   const {
-    monthLabel,
+    monthAnchor,
     monthGrid,
     monthSummary,
     factories,
     factoryId,
     setFactoryId,
-    view,
-    setView,
     selectedDay,
     openDay,
     closeDay,
@@ -29,9 +24,10 @@ export default function CalendarPage() {
     goToToday,
   } = useProductionCalendar()
 
-  const handleReschedule = useCallback(() => {
-    toast.success(t.toast.rescheduleAllTriggered, { id: 'reschedule-all' })
-  }, [t])
+  const monthLabel = monthAnchor.toLocaleDateString(
+    t.locale,
+    t.calendar.monthFormat,
+  )
 
   return (
     <div className={s.page}>
@@ -42,16 +38,6 @@ export default function CalendarPage() {
             <h1 className={s.pageTitle}>{t.calendar.title}</h1>
             <p className={s.pageSubtitle}>{t.calendar.subtitle}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className={s.rescheduleBtn}
-              onClick={handleReschedule}
-            >
-              <RefreshCw className={s.rescheduleIcon} />
-              {t.calendar.rescheduleAll}
-            </button>
-          </div>
         </div>
 
         <CalendarStats summary={monthSummary} />
@@ -61,8 +47,6 @@ export default function CalendarPage() {
           factories={factories}
           factoryId={factoryId}
           onChangeFactory={setFactoryId}
-          view={view}
-          onChangeView={setView}
           onPrevMonth={goToPrevMonth}
           onNextMonth={goToNextMonth}
           onToday={goToToday}

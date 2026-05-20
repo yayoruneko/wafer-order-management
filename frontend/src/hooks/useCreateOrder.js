@@ -7,27 +7,56 @@ import {
 } from '../data/customers'
 import { PRESET_COLORS } from '../styles/createOrderStyles'
 import useI18n from '../i18n/useI18n'
-import { getCustomers, createOrder } from '../api/orderApi'
+import { getCustomers, createOrder, getOrder, cancelOrder } from '../api/orderApi'
 
 const HARDCODED_FACTORY_ID = 'factory-001'
 const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
 
 const MS_PER_DAY = 86_400_000
+const POLL_INTERVAL_MS = 500
+// Covers SCHEDULE_ORDER (~0.5s) + conditional RESCHEDULE_ALL (~0.5s) + queue wait + buffer
+const POLL_TIMEOUT_MS = 30_000
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-function mockCapacityCheck({ qty, dueDate, t }) {
-  if (!qty || !dueDate) return { ok: true }
-  const dayHash =
-    dueDate.getFullYear() * 372 + dueDate.getMonth() * 31 + dueDate.getDate()
-  const congestion = (dayHash % 7) + Math.floor(qty / 400)
-  if (congestion <= 5) return { ok: true }
-  const delayDays = Math.min(30, congestion - 5)
-  const earliest = new Date(dueDate)
-  earliest.setDate(earliest.getDate() + delayDays)
-  const conflictingOrders = (dayHash % 3) + 1
-  const scheduleWarning = t.scheduleAlert.defaultWarning(conflictingOrders)
-  return { ok: false, delayDays, earliest, conflictingOrders, scheduleWarning }
+// State machine to wait for the FULL scheduling cycle:
+//   PENDING
+//   → SCHEDULED(delayed=true)   ← SCHEDULE_ORDER done, but RESCHEDULE_ALL will follow
+//   → PENDING                   ← RESCHEDULE_ALL started (reset order)
+//   → SCHEDULED(final result)   ← RESCHEDULE_ALL done
+//
+// Only return on:
+//   - SCHEDULED with isDelayed=false (on-time, any point)
+//   - SCHEDULED with isDelayed=true AND we already saw the PENDING→SCHEDULED cycle
+//   - timeout (return null → caller treats as ok)
+async function waitForScheduling(orderId) {
+  const started = Date.now()
+  let seenDelayed = false
+  let wentPendingAfterDelay = false
+
+  while (Date.now() - started < POLL_TIMEOUT_MS) {
+    await wait(POLL_INTERVAL_MS)
+    try {
+      const { data } = await getOrder(orderId)
+      if (!data?.status) continue
+
+      if (data.status === 'PENDING') {
+        if (seenDelayed) wentPendingAfterDelay = true
+        continue
+      }
+
+      if (!data.isDelayed) return data
+
+      if (!seenDelayed) {
+        seenDelayed = true
+        continue
+      }
+      if (wentPendingAfterDelay) return data
+    } catch {
+      // ignore transient errors
+    }
+  }
+  return null
 }
 
 function nextCustomerCode(customers) {
@@ -154,18 +183,28 @@ export default function useCreateOrder() {
     [selectedCustomer, qty, dueDate],
   )
 
-  const checkCapacity = useCallback(() => {
-    if (!canSubmit) return null
-    const numericQty = Number(String(qty).replace(/,/g, ''))
-    return mockCapacityCheck({ qty: numericQty, dueDate, t })
-  }, [canSubmit, qty, dueDate, t])
-
   const submit = useCallback(async () => {
     if (!canSubmit) return null
     setSubmitting(true)
     try {
-      await createOrder(buildPayload())
-      return { status: 'ok' }
+      const { data: created } = await createOrder(buildPayload())
+      const orderId = created?.id
+      if (!orderId) return { status: 'ok' }
+
+      const scheduled = await waitForScheduling(orderId)
+      if (!scheduled) {
+        return { status: 'ok', orderId }
+      }
+      if (scheduled.isDelayed) {
+        return {
+          status: 'delayed',
+          orderId,
+          earliest: scheduled.expectedDueDate,
+          delayDays: scheduled.delayDays ?? 0,
+          scheduleWarning: scheduled.scheduleWarning,
+        }
+      }
+      return { status: 'ok', orderId }
     } catch (err) {
       const message = err?.response?.data?.message ?? err?.message ?? '建立訂單失敗'
       throw new Error(message)
@@ -174,19 +213,14 @@ export default function useCreateOrder() {
     }
   }, [canSubmit, buildPayload])
 
-  const submitWithAcceptedDate = useCallback(
-    async () => {
-      if (!canSubmit) return null
-      setSubmitting(true)
-      try {
-        await createOrder(buildPayload())
-        return { status: 'ok' }
-      } finally {
-        setSubmitting(false)
-      }
-    },
-    [canSubmit, buildPayload],
-  )
+  const cancelCreatedOrder = useCallback(async (orderId) => {
+    if (!orderId) return
+    try {
+      await cancelOrder(orderId)
+    } catch {
+      // best effort
+    }
+  }, [])
 
   return {
     customers,
@@ -210,8 +244,7 @@ export default function useCreateOrder() {
     canSubmit,
     submitting,
     submit,
-    submitWithAcceptedDate,
-    checkCapacity,
+    cancelCreatedOrder,
     reset,
   }
 }

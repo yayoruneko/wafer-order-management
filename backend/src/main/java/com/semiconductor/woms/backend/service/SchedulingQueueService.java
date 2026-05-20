@@ -13,11 +13,19 @@ public class SchedulingQueueService {
 
     private final SchedulingQueueRepository schedulingQueueRepository;
 
-    // 後端A的 createOrder 會呼叫這個方法，把排程任務加入佇列
     public void enqueue(String orderId, SchedulingAction action) {
         SchedulingQueue task = new SchedulingQueue();
         task.setOrderId(orderId);
         task.setAction(action);
+        task.setStatus(QueueStatus.PENDING);
+        task.setPriority(100);
+        schedulingQueueRepository.save(task);
+    }
+
+    public void enqueueRescheduleAll() {
+        SchedulingQueue task = new SchedulingQueue();
+        task.setOrderId(null);
+        task.setAction(SchedulingAction.RESCHEDULE_ALL);
         task.setStatus(QueueStatus.PENDING);
         task.setPriority(100);
         schedulingQueueRepository.save(task);

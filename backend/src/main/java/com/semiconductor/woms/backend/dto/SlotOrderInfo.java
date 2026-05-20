@@ -6,6 +6,7 @@ import java.time.LocalDate;
 @Data
 public class SlotOrderInfo {
     private String orderId;
+    private String customerId;
     private String customerName;
     private String customerCode;
     private LocalDate requestedDate;
@@ -13,4 +14,5 @@ public class SlotOrderInfo {
     private Integer delayDays;
     private Integer qty;
     private String scheduleWarning;
+    private Boolean isDelayed;
 }

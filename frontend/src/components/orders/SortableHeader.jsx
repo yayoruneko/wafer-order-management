@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, Info } from 'lucide-react'
 import { styles } from '../../styles/orderListStyles'
 
 function SortableHeaderBase({
@@ -9,15 +9,20 @@ function SortableHeaderBase({
   sortDir,
   onSort,
   align = 'left',
+  hint,
 }) {
   const active = field && sortField === field
   const sortable = !!field
   const justify = align === 'right' ? 'justify-end' : 'justify-start'
+  const hintIcon = hint ? (
+    <Info className="h-3 w-3 text-stone-400" aria-hidden="true" />
+  ) : null
 
   if (!sortable) {
     return (
-      <div className={`flex w-full ${justify}`}>
-        <span className={styles.headerCellText}>{children}</span>
+      <div className={`flex w-full ${justify}`} title={hint || undefined}>
+        <span className={`${styles.headerCellText} whitespace-nowrap`}>{children}</span>
+        {hintIcon}
       </div>
     )
   }
@@ -33,9 +38,11 @@ function SortableHeaderBase({
       type="button"
       onClick={() => onSort?.(field)}
       className={`flex w-full ${justify} ${styles.headerCellBtn}`}
+      title={hint || undefined}
     >
-      <span>{children}</span>
+      <span className="whitespace-nowrap">{children}</span>
       <Icon className={active ? styles.sortIconActive : styles.sortIcon} />
+      {hintIcon}
     </button>
   )
 }

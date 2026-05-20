@@ -10,14 +10,14 @@ export const loadStyles = {
     legendDot: 'bg-emerald-500',
   },
   nearFull: {
-    accent: 'bg-orange-500',
-    bar: 'bg-orange-500',
-    barDim: 'bg-orange-200/70',
-    cellBg: 'bg-orange-50/40',
-    cellOuter: 'border-l-[3px] border-orange-500',
+    accent: 'bg-amber-400',
+    bar: 'bg-amber-400',
+    barDim: 'bg-amber-200/70',
+    cellBg: 'bg-amber-50/50',
+    cellOuter: 'border-l-[3px] border-amber-400',
     countText: 'text-stone-900',
     label: '接近滿載',
-    legendDot: 'bg-orange-500',
+    legendDot: 'bg-amber-400',
   },
   full: {
     accent: 'bg-red-500',
@@ -33,7 +33,7 @@ export const loadStyles = {
 
 export const calendarStyles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
-  shell: 'mx-auto flex max-w-[1280px] flex-col gap-5 px-8 py-7',
+  shell: 'mx-auto flex max-w-[1440px] flex-col gap-5 px-8 py-7',
 
   headerRow: 'flex items-start justify-between',
   pageTitle: 'text-[28px] font-bold leading-tight text-stone-900',
@@ -50,7 +50,7 @@ export const calendarStyles = {
   statRow: 'mt-1 flex items-baseline gap-2',
   statValue: 'text-[28px] font-semibold leading-none text-stone-900',
   statValueRed: 'text-[28px] font-semibold leading-none text-red-600',
-  statValueOrange: 'text-[28px] font-semibold leading-none text-orange-600',
+  statValueOrange: 'text-[28px] font-semibold leading-none text-amber-500',
   statHint: 'text-[12px] font-medium text-stone-500',
   statDeltaUp: 'text-[12px] font-medium text-emerald-600',
   statDeltaDown: 'text-[12px] font-medium text-red-600',
@@ -126,6 +126,8 @@ export const calendarStyles = {
   popoverTitleWrap: 'flex items-center gap-3',
   popoverIconWrap:
     'inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-600',
+  popoverIconWrapNeutral:
+    'inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-700',
   popoverIcon: 'h-5 w-5',
   popoverTitle: 'text-[16px] font-semibold text-stone-900',
   popoverSubtitle: 'mt-0.5 text-[12px] text-stone-500',
@@ -145,6 +147,8 @@ export const calendarStyles = {
   orderDelayPill:
     'inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600',
   orderDelayPillIcon: 'h-3 w-3',
+  orderOnTrackPill:
+    'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700',
   orderDateGrid: 'mt-3 grid grid-cols-2 gap-3 rounded-md bg-stone-50 px-3 py-2.5',
   orderDateLabel: 'text-[11px] font-medium uppercase tracking-wider text-stone-400',
   orderDateValue: 'mt-0.5 text-[13px] font-medium text-stone-800',
