@@ -9,6 +9,9 @@ import UserAdminPage from './pages/UserAdminPage'
 import { AuthProvider } from './auth/AuthProvider'
 import ProtectedRoute from './auth/ProtectedRoute'
 import I18nProvider from './i18n/I18nProvider'
+import OAuth2Redirect from './components/OAuth2Redirect'; 
+
+
 
 export default function App() {
   return (
@@ -77,6 +80,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
         </Routes>
         </AuthProvider>
       </I18nProvider>

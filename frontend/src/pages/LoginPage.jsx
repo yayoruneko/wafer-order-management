@@ -235,16 +235,13 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-stone-200" />
             </div>
 
-            <button
-              type="button"
-              disabled
-              title={t.login.demoOnly}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-sm font-medium text-stone-800 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+            <a
+              href="http://localhost:8080/oauth2/authorization/google"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 transition hover:bg-stone-50"
             >
-              <Lock className="h-4 w-4" />
+              <Lock className="h-4 w-4 text-stone-400" />
               {t.login.continueSso}
-            </button>
-
+            </a>
             {isDemo ? (
               <div className="mt-1 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
                 <div className="text-[12px] font-semibold text-stone-700">

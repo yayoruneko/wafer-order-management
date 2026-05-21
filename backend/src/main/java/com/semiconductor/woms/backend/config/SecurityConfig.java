@@ -15,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.semiconductor.woms.backend.security.OAuth2SuccessHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -29,7 +30,10 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAccessDeniedHandler accessDeniedHandler;
-
+    
+    @Autowired
+    private OAuth2SuccessHandler oAuth2SuccessHandler;
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -44,6 +48,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)      // 有 Token 但權限不對
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // 👇 1. 新增這行：放行所有 OAuth2 登入相關的網址！
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                        
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -64,12 +71,13 @@ public class SecurityConfig {
 
                         // 其他所有請求都必須登入
                         .anyRequest().authenticated()
-                );
-//                .oauth2Login(oauth2 -> oauth2
-//                        .successHandler(oAuth2SuccessHandler()) // 處理 SSO 邏輯
-//                );;
+                ) // 👇 2. 注意這裡！把原本的 分號 (;) 拿掉，才能繼續往下串接
+                .oauth2Login(oauth2 -> oauth2
+                    .successHandler(oAuth2SuccessHandler) 
+                ); // 👈 真正的分號要在整個設定的最後面！
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
 }
