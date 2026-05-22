@@ -30,6 +30,11 @@ export const PAGE_SIZE = 20
 
 const EMPTY_DATE_RANGE = { fromIso: '', toIso: '' }
 
+// 歷史訂單：已完成（COMPLETED）；已取消另立分頁
+const isHistoryOrder = (o) => o.status === 'COMPLETED'
+
+const isCancelled = (o) => o.status === 'CANCELLED'
+
 function compare(a, b, field) {
   const av = a[field]
   const bv = b[field]
@@ -46,6 +51,13 @@ export default function useOrders() {
   const [viewCountsData, setViewCountsData] = useState({ all: 0, delayed: 0, in_production: 0, mine: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [historyMeta, setHistoryMeta] = useState({
+    historyCount: 0,
+    activeCount: 0,
+    cancelledCount: 0,
+  })
+  // 樂觀取消：使用者按取消後到真正打 DELETE 之前，把該筆視為已取消（影響顯示、計數）
+  const [pendingCancels, setPendingCancels] = useState(() => new Map())
   const [filters, setFilters] = useState({
     id: '',
     customer: '',
@@ -96,9 +108,28 @@ export default function useOrders() {
       if (status && status !== 'ALL') params.status = status
       if (dateRange?.fromIso) params.fromDate = dateRange.fromIso
       if (dateRange?.toIso) params.toDate = dateRange.toIso
-      if (currentView && currentView !== 'all') params.view = currentView
+      // 'history' / 'cancelled' 不是後端支援的 view；不送 view 讓後端回全部，前端再分
+      if (
+        currentView &&
+        currentView !== 'all' &&
+        currentView !== 'history' &&
+        currentView !== 'cancelled'
+      )
+        params.view = currentView
       const { data } = await getOrders(params)
-      setOrders(data.map(mapOrder))
+      const mapped = data.map(mapOrder)
+      // 三類互斥：已取消 / 歷史（已完成）/ 進行中（其餘狀態）
+      let next
+      if (currentView === 'cancelled') {
+        next = mapped.filter(isCancelled)
+      } else if (currentView === 'history') {
+        next = mapped.filter(isHistoryOrder)
+      } else {
+        next = mapped.filter(
+          (o) => !isCancelled(o) && !isHistoryOrder(o),
+        )
+      }
+      setOrders(next)
     } catch {
       setOrders([])
       setError(true)
@@ -107,21 +138,52 @@ export default function useOrders() {
     }
   }, [])
 
+  const fetchHistoryMeta = useCallback(async () => {
+    try {
+      const { data } = await getOrders()
+      const mapped = data.map(mapOrder)
+      const cancelledCount = mapped.filter(isCancelled).length
+      const historyCount = mapped.filter(isHistoryOrder).length
+      setHistoryMeta({
+        historyCount,
+        cancelledCount,
+        activeCount: mapped.length - historyCount - cancelledCount,
+      })
+    } catch {
+      // non-critical: tab badge falls back to stats
+    }
+  }, [])
+
   useEffect(() => {
     fetchStats()
-  }, [fetchStats])
+    fetchHistoryMeta()
+  }, [fetchStats, fetchHistoryMeta])
 
   // Re-fetch whenever filters or view change (fetchOrders is stable)
   useEffect(() => {
     fetchOrders()
   }, [filters, view, fetchOrders])
 
+  // 顯示用清單：依當前 view 把樂觀取消的訂單從非取消視圖移除，並在取消視圖補上
+  const displayOrders = useMemo(() => {
+    if (pendingCancels.size === 0) return orders
+    if (view === 'cancelled') {
+      const existing = new Set(orders.map((o) => o.id))
+      const extras = []
+      for (const o of pendingCancels.values()) {
+        if (!existing.has(o.id)) extras.push(o)
+      }
+      return extras.length ? [...extras, ...orders] : orders
+    }
+    return orders.filter((o) => !pendingCancels.has(o.id))
+  }, [orders, view, pendingCancels])
+
   const sorted = useMemo(() => {
-    if (!sortField) return orders
-    const arr = [...orders]
+    if (!sortField) return displayOrders
+    const arr = [...displayOrders]
     arr.sort((a, b) => compare(a, b, sortField) * (sortDir === 'asc' ? 1 : -1))
     return arr
-  }, [orders, sortField, sortDir])
+  }, [displayOrders, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -200,6 +262,24 @@ export default function useOrders() {
     )
   }, [])
 
+  const optimisticCancel = useCallback((order) => {
+    setPendingCancels((prev) => {
+      if (prev.has(order.id)) return prev
+      const next = new Map(prev)
+      next.set(order.id, { ...order, status: 'CANCELLED' })
+      return next
+    })
+  }, [])
+
+  const revertOptimisticCancel = useCallback((id) => {
+    setPendingCancels((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Map(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
+
   const cancelSelected = useCallback(async () => {
     const ids = [...selectedIds]
     setOrders((prev) =>
@@ -211,8 +291,9 @@ export default function useOrders() {
     } finally {
       fetchOrders()
       fetchStats()
+      fetchHistoryMeta()
     }
-  }, [selectedIds, fetchOrders, fetchStats])
+  }, [selectedIds, fetchOrders, fetchStats, fetchHistoryMeta])
 
   const exportSelected = useCallback(() => {
     const rows = sorted.filter((o) => selectedIds.has(o.id))
@@ -259,10 +340,20 @@ export default function useOrders() {
     [sorted, selectedIds],
   )
 
-  const retry = useCallback(() => {
-    fetchOrders()
-    fetchStats()
-  }, [fetchOrders, fetchStats])
+  const retry = useCallback(
+    () => Promise.all([fetchOrders(), fetchStats(), fetchHistoryMeta()]),
+    [fetchOrders, fetchStats, fetchHistoryMeta],
+  )
+
+  // 計算樂觀取消對各分頁徽章的差異
+  const pendingActiveCount = useMemo(() => {
+    let n = 0
+    for (const o of pendingCancels.values()) {
+      if (!isHistoryOrder(o)) n += 1
+    }
+    return n
+  }, [pendingCancels])
+  const pendingHistoryCount = pendingCancels.size - pendingActiveCount
 
   return {
     orders: pageItems,
@@ -275,7 +366,15 @@ export default function useOrders() {
     pageSize: PAGE_SIZE,
     totalPages,
     stats: statsData,
-    viewCounts: viewCountsData,
+    viewCounts: {
+      ...viewCountsData,
+      all: Math.max(
+        0,
+        (historyMeta.activeCount || viewCountsData.all) - pendingActiveCount,
+      ),
+      history: Math.max(0, historyMeta.historyCount - pendingHistoryCount),
+      cancelled: historyMeta.cancelledCount + pendingCancels.size,
+    },
     view,
     changeView,
     sortField,
@@ -292,6 +391,8 @@ export default function useOrders() {
     cancelSelected,
     exportSelected,
     updateOrderField,
+    optimisticCancel,
+    revertOptimisticCancel,
     search,
     reset,
     goPage,
