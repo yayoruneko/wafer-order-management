@@ -77,6 +77,7 @@ public class QueuePoller {
             }
             task.setStatus(QueueStatus.DONE);
             log.info("Done: task={} action={} order={}", task.getId(), task.getAction(), task.getOrderId());
+            schedulerService.updateOrderStatusesByDate();
         } catch (Exception e) {
             task.setStatus(QueueStatus.FAILED);
             log.error("Failed: task={} action={} error={}", task.getId(), task.getAction(), e.getMessage());
