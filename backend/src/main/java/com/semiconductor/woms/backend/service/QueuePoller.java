@@ -32,7 +32,7 @@ public class QueuePoller {
         schedulerService.updateOrderStatusesByDate();
     }
 
-    @Scheduled(fixedRate = 3_600_000)
+    @Scheduled(cron = "0 0 * * * *")
     public void periodicStatusUpdate() {
         schedulerService.updateOrderStatusesByDate();
     }
