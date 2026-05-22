@@ -6,6 +6,8 @@ import com.semiconductor.woms.backend.model.SchedulingQueue;
 import com.semiconductor.woms.backend.repository.SchedulingQueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,10 +24,14 @@ public class QueuePoller {
     private final SchedulingQueueService schedulingQueueService;
 
     /**
-     * 每小時檢查並更新訂單狀態：
-     * SCHEDULED → IN_PRODUCTION（第一個 slot 日期已到）
-     * IN_PRODUCTION → COMPLETED（最後一個 slot 日期已過）
+     * 應用程式啟動完成後立即執行一次，確保 demo data seed 完才更新狀態。
+     * 之後每小時再定期執行。
      */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        schedulerService.updateOrderStatusesByDate();
+    }
+
     @Scheduled(fixedRate = 3_600_000)
     public void periodicStatusUpdate() {
         schedulerService.updateOrderStatusesByDate();
