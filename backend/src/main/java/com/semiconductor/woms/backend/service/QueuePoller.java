@@ -22,6 +22,16 @@ public class QueuePoller {
     private final SchedulingQueueService schedulingQueueService;
 
     /**
+     * 每小時檢查並更新訂單狀態：
+     * SCHEDULED → IN_PRODUCTION（第一個 slot 日期已到）
+     * IN_PRODUCTION → COMPLETED（最後一個 slot 日期已過）
+     */
+    @Scheduled(fixedRate = 3_600_000)
+    public void periodicStatusUpdate() {
+        schedulerService.updateOrderStatusesByDate();
+    }
+
+    /**
      * 每次只取一筆 PENDING 任務執行，確保任務序列化。
      * fixedDelay 保證上一次 poll() 結束後才會再次觸發，不會並發執行。
      * 若有任務卡在 PROCESSING（例如 app 重啟），優先跳過以免重複執行。

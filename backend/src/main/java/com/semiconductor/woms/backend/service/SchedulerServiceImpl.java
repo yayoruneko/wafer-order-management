@@ -135,6 +135,31 @@ public class SchedulerServiceImpl implements SchedulerService {
     }
 
     @Override
+    @Transactional
+    public void updateOrderStatusesByDate() {
+        LocalDate today = LocalDate.now();
+
+        // SCHEDULED → IN_PRODUCTION：有 slot 日期 <= 今天，代表生產已開始
+        List<String> startedOrderIds = slotRepo.findOrderIdsWithSlotsOnOrBefore(today);
+        if (!startedOrderIds.isEmpty()) {
+            orderRepo.findByStatusIn(List.of(OrderStatus.SCHEDULED)).stream()
+                    .filter(o -> startedOrderIds.contains(o.getId()))
+                    .forEach(o -> {
+                        o.setStatus(OrderStatus.IN_PRODUCTION);
+                        orderRepo.save(o);
+                    });
+        }
+
+        // IN_PRODUCTION → COMPLETED：lastSlotDate < 今天，代表所有生產批次已完成
+        orderRepo.findByStatus(OrderStatus.IN_PRODUCTION).stream()
+                .filter(o -> o.getLastSlotDate() != null && o.getLastSlotDate().isBefore(today))
+                .forEach(o -> {
+                    o.setStatus(OrderStatus.COMPLETED);
+                    orderRepo.save(o);
+                });
+    }
+
+    @Override
     public int getAvailableCapacity(String factoryId, LocalDate date) {
         return capacityRepo.findByFactoryIdAndSlotDate(factoryId, date)
                 .map(usage -> DAILY_CAPACITY - usage.getUsedQuantity())
