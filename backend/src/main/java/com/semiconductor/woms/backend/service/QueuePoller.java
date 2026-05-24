@@ -6,6 +6,8 @@ import com.semiconductor.woms.backend.model.SchedulingQueue;
 import com.semiconductor.woms.backend.repository.SchedulingQueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,20 @@ public class QueuePoller {
     private final SchedulingQueueRepository queueRepository;
     private final SchedulerService schedulerService;
     private final SchedulingQueueService schedulingQueueService;
+
+    /**
+     * 應用程式啟動完成後立即執行一次，確保 demo data seed 完才更新狀態。
+     * 之後每小時再定期執行。
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        schedulerService.updateOrderStatusesByDate();
+    }
+
+    @Scheduled(cron = "0 0 * * * *")
+    public void periodicStatusUpdate() {
+        schedulerService.updateOrderStatusesByDate();
+    }
 
     /**
      * 每次只取一筆 PENDING 任務執行，確保任務序列化。
@@ -61,6 +77,7 @@ public class QueuePoller {
             }
             task.setStatus(QueueStatus.DONE);
             log.info("Done: task={} action={} order={}", task.getId(), task.getAction(), task.getOrderId());
+            schedulerService.updateOrderStatusesByDate();
         } catch (Exception e) {
             task.setStatus(QueueStatus.FAILED);
             log.error("Failed: task={} action={} error={}", task.getId(), task.getAction(), e.getMessage());
