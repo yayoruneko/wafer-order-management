@@ -62,6 +62,7 @@ function mapOrder(o) {
     delayedDays: o.delayDays ?? 0,
     scheduleWarning: o.scheduleWarning ?? null,
     createdAt: o.createdAt ?? null,
+    updatedAt: o.updatedAt ?? null,
     lastEditAt: o.updatedAt ? new Date(o.updatedAt) : null,
     lastEditBy: CURRENT_USER,
   }
@@ -173,6 +174,7 @@ export default function useEditOrder(orderId) {
       await updateOrder(order.id, {
         quantity: Number(String(qty).replace(/,/g, '')),
         customerDueDate: toISO(dueDate),
+        updatedAt: order.updatedAt ?? undefined,
       })
       const scheduled = await waitForScheduling(order.id)
       if (!scheduled) return { status: 'ok' }

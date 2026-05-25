@@ -1,10 +1,12 @@
 package com.semiconductor.woms.backend.config;
 
 import com.semiconductor.woms.backend.model.Order;
+import com.semiconductor.woms.backend.model.ProductionSlot;
 import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.OrderStatus;
 import com.semiconductor.woms.backend.model.enums.UserType;
 import com.semiconductor.woms.backend.repository.OrderRepository;
+import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import com.semiconductor.woms.backend.repository.UserRepository;
 import com.semiconductor.woms.backend.service.SchedulingQueueService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private OrderRepository orderRepository;
+    @Autowired private ProductionSlotRepository productionSlotRepository;
     @Autowired private SchedulingQueueService schedulingQueueService;
 
     @Override
@@ -37,12 +40,20 @@ public class DemoDataInitializer implements CommandLineRunner {
         LocalDate today = LocalDate.now();
 
         // A few IN_PRODUCTION orders (already being produced, no scheduler needed)
+        // Each entry: {customerId, qty, daysFromToday}
         Object[][] inProdSeeds = {
             {"customer-001", 2500, -12},
             {"customer-002", 2000, -8},
             {"customer-003", 1500, -4},
         };
-        for (Object[] seed : inProdSeeds) {
+        // Matching slot splits: {dayOffset, slotQty} pairs per order
+        int[][][] inProdSlots = {
+            {{-14, 1000}, {-13, 1000}, {-12, 500}},
+            {{-9,  1000}, {-8,  1000}},
+            {{-5,  800},  {-4,  700}},
+        };
+        for (int i = 0; i < inProdSeeds.length; i++) {
+            Object[] seed = inProdSeeds[i];
             Order order = new Order();
             order.setFactoryId("factory-001");
             order.setWaferTypeId("wafer-type-001");
@@ -54,9 +65,18 @@ public class DemoDataInitializer implements CommandLineRunner {
             order.setStatus(OrderStatus.PENDING);
             order = orderRepository.save(order);
             order.setStatus(OrderStatus.IN_PRODUCTION);
+            order.setRemainingQuantity(0);
             order.setExpectedDueDate(due);
             order.setLastSlotDate(due);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
+            for (int[] slotDef : inProdSlots[i]) {
+                ProductionSlot slot = new ProductionSlot();
+                slot.setOrderId(savedOrder.getId());
+                slot.setFactoryId("factory-001");
+                slot.setSlotDate(today.plusDays(slotDef[0]));
+                slot.setQuantity(slotDef[1]);
+                productionSlotRepository.save(slot);
+            }
         }
 
         // PENDING orders with future due dates spread across ~10 weeks.

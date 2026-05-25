@@ -58,6 +58,10 @@ public class SecurityConfig {
                         // 使用者管理
                         .requestMatchers("/api/users/**").hasAuthority("SUPER_ADMIN")
 
+                        // 客戶相關
+                        .requestMatchers(HttpMethod.GET, "/api/customers/**").hasAnyAuthority("VIEWER", "ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/customers/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
+
                         // 訂單相關
                         .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyAuthority("VIEWER", "ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/orders/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
