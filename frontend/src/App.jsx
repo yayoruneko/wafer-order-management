@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import OrderListPage from './pages/OrderListPage'
 import CreateOrderPage from './pages/CreateOrderPage'
@@ -6,9 +6,69 @@ import EditOrderPage from './pages/EditOrderPage'
 import LoginPage from './pages/LoginPage'
 import CalendarPage from './pages/CalendarPage'
 import UserAdminPage from './pages/UserAdminPage'
+import StatsChartsPage from './pages/StatsChartsPage'
 import { AuthProvider } from './auth/AuthProvider'
 import ProtectedRoute from './auth/ProtectedRoute'
 import I18nProvider from './i18n/I18nProvider'
+
+function AnimatedRoutes() {
+  const location = useLocation()
+  return (
+    <div key={location.pathname} className="route-fade">
+      <Routes location={location}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <OrderListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/new"
+          element={
+            <ProtectedRoute>
+              <CreateOrderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditOrderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <CalendarPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <UserAdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/stats"
+          element={
+            <ProtectedRoute>
+              <StatsChartsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </div>
+  )
+}
 
 export default function App() {
   return (
@@ -35,49 +95,7 @@ export default function App() {
             },
           }}
         />
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <OrderListPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/new"
-            element={
-              <ProtectedRoute>
-                <CreateOrderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id/edit"
-            element={
-              <ProtectedRoute>
-                <EditOrderPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute>
-                <CalendarPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute>
-                <UserAdminPage />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <AnimatedRoutes />
         </AuthProvider>
       </I18nProvider>
     </BrowserRouter>

@@ -68,8 +68,8 @@ public class OrderService {
             throw new IllegalArgumentException("數量必須在 25 到 2500 之間");
         }
 
-        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("交期不得早於今日");
+        if (!request.getCustomerDueDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("交期必須晚於今日");
         }
 
         customerRepository.findById(request.getCustomerId())
@@ -186,8 +186,14 @@ public class OrderService {
             throw new IllegalStateException("無法更新已取消或已完成的訂單");
         }
 
-        if (request.getCustomerDueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("交期不得早於今日");
+        // Optimistic locking：若前端帶了 updatedAt 且與目前資料不符，回 409
+        if (request.getUpdatedAt() != null && order.getUpdatedAt() != null
+                && !request.getUpdatedAt().equals(order.getUpdatedAt())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "訂單已被他人修改，請重新載入後再試");
+        }
+
+        if (!request.getCustomerDueDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("交期必須晚於今日");
         }
 
         String changedById = getCurrentUser().map(User::getId).orElse(order.getCreatedBy());

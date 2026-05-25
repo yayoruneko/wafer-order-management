@@ -15,4 +15,7 @@ public interface SchedulerService {
 
     // 歸還產能（釋放 slot 時由 OrderService 呼叫）
     void releaseCapacity(String factoryId, LocalDate date, int quantity);
+
+    // 依日期更新訂單狀態：SCHEDULED→IN_PRODUCTION、IN_PRODUCTION→COMPLETED
+    void updateOrderStatusesByDate();
 }

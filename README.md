@@ -35,13 +35,7 @@ docker compose up
 
 ### 登入
 
-系統預設三組測試帳號（由 `DemoDataInitializer` 在啟動時自動建立）：
-
-| 帳號 | 密碼 | 角色 | 權限說明 |
-|------|------|------|----------|
-| `superadmin` | `password` | Super Admin | 最高權限，可管理所有資源 |
-| `admin` | `password` | Admin | 管理員，可管理訂單與排程 |
-| `viewer` | `password` | Viewer | 唯讀，僅可查看資料 |
+目前使用 mock 登入：輸入任意帳號，密碼填 `demo` 即可進入。
 
 ### 停止
 
