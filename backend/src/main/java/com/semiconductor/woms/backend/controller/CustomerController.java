@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -50,9 +52,13 @@ public class CustomerController {
         customer.setCustomerCode(code);
         customer.setIsActive(true);
 
-        Customer saved = customerRepository.save(customer);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new CustomerResponse(saved.getId(), saved.getCustomerCode(), saved.getName()));
+        try {
+            Customer saved = customerRepository.save(customer);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new CustomerResponse(saved.getId(), saved.getCustomerCode(), saved.getName()));
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "客戶代碼已存在：" + code);
+        }
     }
 
     private String generateNextCode() {
