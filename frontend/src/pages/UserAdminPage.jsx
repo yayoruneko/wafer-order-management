@@ -80,11 +80,11 @@ export default function UserAdminPage() {
         const name = target.displayName || target.username
         if (nextRole === 'ADMIN') {
           toast.success(t.userAdmin.toast.promoteSuccess(name), {
-            id: `user-${updated.id}`,
+            id: `user-${target.id}`,
           })
         } else {
           toast.success(t.userAdmin.toast.demoteSuccess(name), {
-            id: `user-${updated.id}`,
+            id: `user-${target.id}`,
           })
         }
       } catch {

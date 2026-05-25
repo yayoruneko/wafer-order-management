@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -22,11 +22,13 @@ import { createOrderStyles as s } from '../styles/createOrderStyles'
 import { editOrderStyles as e } from '../styles/editOrderStyles'
 import { statusBadge, styles as ls } from '../styles/orderListStyles'
 import useI18n from '../i18n/useI18n'
+import useAuth from '../auth/useAuth'
 
 export default function EditOrderPage() {
   const navigate = useNavigate()
   const { id } = useParams()
   const { t, formatDate } = useI18n()
+  const { user } = useAuth()
   const relativeMinutes = useCallback(
     (date) => {
       if (!date) return ''
@@ -73,6 +75,19 @@ export default function EditOrderPage() {
   const [accepting, setAccepting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [saveHovered, setSaveHovered] = useState(false)
+
+  // VIEWER 不可修改訂單（後端亦會回 403），直接導回列表
+  useEffect(() => {
+    if (user?.role === 'VIEWER') navigate('/', { replace: true })
+  }, [user, navigate])
+
+  // 已取消或已完成的訂單不可編輯，深連結也擋掉
+  useEffect(() => {
+    if (!order) return
+    if (order.status === 'CANCELLED' || order.status === 'COMPLETED') {
+      navigate('/', { replace: true })
+    }
+  }, [order, navigate])
 
   const handleBack = useCallback(() => navigate('/'), [navigate])
 

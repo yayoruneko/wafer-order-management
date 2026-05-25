@@ -23,6 +23,7 @@ function OrderRowBase({
   onUpdateField,
   expanded = false,
   onToggleExpand,
+  canModify = true,
 }) {
   const { t } = useI18n()
   const cancelled = order.status === 'CANCELLED'
@@ -62,6 +63,7 @@ function OrderRowBase({
       <Cell className={`${colWidths.select} justify-center`} data-no-expand>
         <Checkbox
           checked={!!selected}
+          disabled={!canModify}
           onChange={() => onToggleSelect?.(order.id)}
           ariaLabel={t.orderList.selectOrder(order.id)}
         />
@@ -128,7 +130,7 @@ function OrderRowBase({
           value={order.qty}
           display={formatQty(order.qty)}
           type="number"
-          disabled={cancelled}
+          disabled={cancelled || !canModify}
           textClassName={baseText}
           onCommit={(v) => {
             const num = Number(String(v).replace(/,/g, ''))
@@ -148,7 +150,7 @@ function OrderRowBase({
           value={order.dueDate ?? ''}
           display={formatDate(order.dueDate, t.locale)}
           type="date"
-          disabled={cancelled}
+          disabled={cancelled || !canModify}
           textClassName={`${baseText} whitespace-nowrap`}
           onCommit={(v) => onUpdateField?.(order.id, { dueDate: v })}
         />
@@ -184,23 +186,29 @@ function OrderRowBase({
       </Cell>
 
       <Cell className={`${colWidths.actions} gap-1`} data-no-expand>
-        <button
-          className={styles.iconBtn}
-          onClick={() => onEdit?.(order)}
-          aria-label={t.orderList.editOrderAria(order.id)}
-          title={t.orderList.editOrderAria(order.id)}
-        >
-          <Pencil className={styles.pencilIcon} />
-        </button>
-        {!cancelled && (
-          <button
-            className={styles.iconBtnDanger}
-            onClick={() => onCancel?.(order)}
-            aria-label={t.orderList.cancelOrderAria(order.id)}
-            title={t.orderList.cancelOrderAria(order.id)}
-          >
-            <X className={styles.closeIcon} />
-          </button>
+        {canModify ? (
+          <>
+            <button
+              className={styles.iconBtn}
+              onClick={() => onEdit?.(order)}
+              aria-label={t.orderList.editOrderAria(order.id)}
+              title={t.orderList.editOrderAria(order.id)}
+            >
+              <Pencil className={styles.pencilIcon} />
+            </button>
+            {!cancelled && (
+              <button
+                className={styles.iconBtnDanger}
+                onClick={() => onCancel?.(order)}
+                aria-label={t.orderList.cancelOrderAria(order.id)}
+                title={t.orderList.cancelOrderAria(order.id)}
+              >
+                <X className={styles.closeIcon} />
+              </button>
+            )}
+          </>
+        ) : (
+          <span className={styles.cellMuted}>—</span>
         )}
       </Cell>
     </div>
