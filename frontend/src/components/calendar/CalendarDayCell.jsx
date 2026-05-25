@@ -73,26 +73,22 @@ function CalendarDayCellBase({ cell, onOpen }) {
         ) : null}
       </div>
 
-      {cell.count > 0 ? (
-        <div className="flex flex-col gap-1">
-          <div
-            className={
-              muted
-                ? s.cellCountMuted
-                : `${s.cellCount} ${ls.countText}`
-            }
-          >
-            {formatCount(cell.count)} / {formatCount(cell.capacity)}
-          </div>
-          {cell.load === 'full' && !muted ? (
-            <div className={s.cellTag}>
-              {cell.hasDelay
-                ? t.calendar.dayCell.delayedTag(cell.delayedOrders.length)
-                : t.calendar.dayCell.atCapacity}
-            </div>
-          ) : null}
+      <div className="flex flex-col gap-1">
+        <div
+          className={
+            muted ? s.cellCountMuted : `${s.cellCount} ${ls.countText}`
+          }
+        >
+          {formatCount(cell.count)} / {formatCount(cell.capacity)}
         </div>
-      ) : null}
+        {cell.load === 'full' && !muted ? (
+          <div className={s.cellTag}>
+            {cell.hasDelay
+              ? t.calendar.dayCell.delayedTag(cell.delayedOrders.length)
+              : t.calendar.dayCell.atCapacity}
+          </div>
+        ) : null}
+      </div>
 
       {clickable ? (
         <ChevronRight

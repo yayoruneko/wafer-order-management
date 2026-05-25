@@ -461,6 +461,85 @@ class SchedulerServiceTest {
         assertNotNull(pendingOrder.getLastSlotDate());
     }
 
+    // ── updateOrderStatusesByDate ─────────────────────────────────────────────
+
+    @Test
+    void updateOrderStatusesByDate_scheduledOrderWithPastSlot_transitionsToInProduction() {
+        Order scheduled = buildOrder("ord-s", OrderStatus.SCHEDULED, 500);
+        scheduled.setLastSlotDate(LocalDate.now().plusDays(5));
+
+        when(slotRepo.findOrderIdsWithSlotsOnOrBefore(LocalDate.now()))
+                .thenReturn(List.of("ord-s"));
+        when(orderRepo.findByStatusIn(List.of(OrderStatus.SCHEDULED)))
+                .thenReturn(List.of(scheduled));
+        when(orderRepo.findByStatus(OrderStatus.IN_PRODUCTION))
+                .thenReturn(List.of());
+
+        schedulerService.updateOrderStatusesByDate();
+
+        assertEquals(OrderStatus.IN_PRODUCTION, scheduled.getStatus());
+        verify(orderRepo).save(scheduled);
+    }
+
+    @Test
+    void updateOrderStatusesByDate_scheduledOrderWithNoStartedSlots_staysScheduled() {
+        Order scheduled = buildOrder("ord-s", OrderStatus.SCHEDULED, 500);
+
+        when(slotRepo.findOrderIdsWithSlotsOnOrBefore(LocalDate.now()))
+                .thenReturn(List.of());
+        when(orderRepo.findByStatus(OrderStatus.IN_PRODUCTION))
+                .thenReturn(List.of());
+
+        schedulerService.updateOrderStatusesByDate();
+
+        assertEquals(OrderStatus.SCHEDULED, scheduled.getStatus());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    void updateOrderStatusesByDate_inProductionOrderWithPastLastSlot_transitionsToCompleted() {
+        Order inProd = buildOrder("ord-p", OrderStatus.IN_PRODUCTION, 500);
+        inProd.setLastSlotDate(LocalDate.now().minusDays(1));
+
+        when(slotRepo.findOrderIdsWithSlotsOnOrBefore(LocalDate.now()))
+                .thenReturn(List.of());
+        when(orderRepo.findByStatus(OrderStatus.IN_PRODUCTION))
+                .thenReturn(List.of(inProd));
+
+        schedulerService.updateOrderStatusesByDate();
+
+        assertEquals(OrderStatus.COMPLETED, inProd.getStatus());
+        verify(orderRepo).save(inProd);
+    }
+
+    @Test
+    void updateOrderStatusesByDate_inProductionOrderWithFutureLastSlot_staysInProduction() {
+        Order inProd = buildOrder("ord-p", OrderStatus.IN_PRODUCTION, 500);
+        inProd.setLastSlotDate(LocalDate.now().plusDays(3));
+
+        when(slotRepo.findOrderIdsWithSlotsOnOrBefore(LocalDate.now()))
+                .thenReturn(List.of());
+        when(orderRepo.findByStatus(OrderStatus.IN_PRODUCTION))
+                .thenReturn(List.of(inProd));
+
+        schedulerService.updateOrderStatusesByDate();
+
+        assertEquals(OrderStatus.IN_PRODUCTION, inProd.getStatus());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    void updateOrderStatusesByDate_noOrders_doesNothing() {
+        when(slotRepo.findOrderIdsWithSlotsOnOrBefore(LocalDate.now()))
+                .thenReturn(List.of());
+        when(orderRepo.findByStatus(OrderStatus.IN_PRODUCTION))
+                .thenReturn(List.of());
+
+        schedulerService.updateOrderStatusesByDate();
+
+        verify(orderRepo, never()).save(any());
+    }
+
     // ── 輔助方法 ───────────────────────────────────────────────────────────────
 
     private Order buildOrder(String id, OrderStatus status, int quantity) {
