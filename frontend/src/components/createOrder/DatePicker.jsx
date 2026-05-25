@@ -130,10 +130,12 @@ function DatePickerBase({ value, onChange, meta, placeholder }) {
                 return <div key={`e-${i}`} className={s.calDay} aria-hidden />
               const selected = isSameDay(d, value)
               const isToday = isSameDay(d, today)
+              const disabled = d <= today
               const cls = [
                 s.calDay,
-                selected ? s.calDaySelected : '',
-                !selected && isToday ? s.calDayToday : '',
+                disabled ? s.calDayDisabled : '',
+                !disabled && selected ? s.calDaySelected : '',
+                !disabled && !selected && isToday ? s.calDayToday : '',
               ]
                 .filter(Boolean)
                 .join(' ')
@@ -142,7 +144,9 @@ function DatePickerBase({ value, onChange, meta, placeholder }) {
                   key={d.toISOString()}
                   type="button"
                   className={cls}
-                  onClick={() => pick(d)}
+                  onClick={() => !disabled && pick(d)}
+                  disabled={disabled}
+                  aria-disabled={disabled}
                 >
                   {d.getDate()}
                 </button>
@@ -153,8 +157,8 @@ function DatePickerBase({ value, onChange, meta, placeholder }) {
           <div className={s.calFooter}>
             <button
               type="button"
-              className={s.calFootBtn}
-              onClick={() => pick(today)}
+              className={`${s.calFootBtn} cursor-not-allowed opacity-40`}
+              disabled
             >
               {t.datePicker.today}
             </button>

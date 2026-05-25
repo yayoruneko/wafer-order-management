@@ -35,7 +35,7 @@ public class SchedulerServiceImpl implements SchedulerService {
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
         int remaining = order.getRemainingQuantity();
-        LocalDate cursor = LocalDate.now();
+        LocalDate cursor = LocalDate.now().plusDays(1);
         LocalDate deadline = cursor.plusDays(MAX_LOOKAHEAD_DAYS);
         List<ProductionSlot> slots = new ArrayList<>();
 

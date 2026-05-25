@@ -8,6 +8,7 @@ import {
 import { PRESET_COLORS } from '../styles/createOrderStyles'
 import useI18n from '../i18n/useI18n'
 import { getCustomers, createOrder, getOrder, cancelOrder } from '../api/orderApi'
+import { createCustomer } from '../api/customerApi'
 
 const HARDCODED_FACTORY_ID = 'factory-001'
 const HARDCODED_WAFER_TYPE_ID = 'wafer-type-001'
@@ -25,14 +26,17 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 //   → PENDING                   ← RESCHEDULE_ALL started (reset order)
 //   → SCHEDULED(final result)   ← RESCHEDULE_ALL done
 //
-// Only return on:
+// Returns when:
 //   - SCHEDULED with isDelayed=false (on-time, any point)
-//   - SCHEDULED with isDelayed=true AND we already saw the PENDING→SCHEDULED cycle
+//   - SCHEDULED with isDelayed=true AND we saw the full PENDING→SCHEDULED cycle
+//   - SCHEDULED with isDelayed=true AND 5s have elapsed since first seeing delayed
+//     (handles the race where RESCHEDULE_ALL completes between two polls)
 //   - timeout (return null → caller treats as ok)
 async function waitForScheduling(orderId) {
   const started = Date.now()
   let seenDelayed = false
   let wentPendingAfterDelay = false
+  let delayedSeenAt = null
 
   while (Date.now() - started < POLL_TIMEOUT_MS) {
     await wait(POLL_INTERVAL_MS)
@@ -49,23 +53,17 @@ async function waitForScheduling(orderId) {
 
       if (!seenDelayed) {
         seenDelayed = true
+        delayedSeenAt = Date.now()
         continue
       }
       if (wentPendingAfterDelay) return data
+      // Fallback: if 5s have passed since first seeing delayed, RESCHEDULE_ALL must be done
+      if (Date.now() - delayedSeenAt > 5000) return data
     } catch {
       // ignore transient errors
     }
   }
   return null
-}
-
-function nextCustomerCode(customers) {
-  let max = 0
-  for (const c of customers) {
-    const n = Number(String(c.code).replace(/\D+/g, ''))
-    if (Number.isFinite(n) && n > max) max = n
-  }
-  return `CUST-${String(max + 1).padStart(3, '0')}`
 }
 
 function pickColor(seed) {
@@ -140,18 +138,23 @@ export default function useCreateOrder() {
 
   const selectCustomer = useCallback((c) => setSelectedCustomer(c), [])
 
-  const addCustomer = useCallback(({ name, code }) => {
+  const addCustomer = useCallback(async ({ name, code }) => {
     const trimmedName = name.trim()
     if (!trimmedName) return null
-    const next = {
+    const { data } = await createCustomer({
       name: trimmedName,
-      code: code?.trim() || nextCustomerCode(customers),
+      customerCode: code?.trim() || undefined,
+    })
+    const next = {
+      id: data.id,
+      code: data.customerCode,
+      name: data.name,
       color: pickColor(seedRef.current++),
     }
     setCustomers((prev) => [...prev, next])
     setSelectedCustomer(next)
     return next
-  }, [customers])
+  }, [])
 
   const updateQty = useCallback((value) => setQty(value), [])
 

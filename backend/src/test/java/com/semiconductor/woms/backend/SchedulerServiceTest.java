@@ -77,15 +77,15 @@ class SchedulerServiceTest {
         mockOrder.setQuantity(800);
         mockOrder.setRemainingQuantity(800);
 
-        DailyCapacityUsage todayUsage = new DailyCapacityUsage();
-        todayUsage.setFactoryId("factory-001");
-        todayUsage.setSlotDate(LocalDate.now());
-        todayUsage.setUsedQuantity(9500);
+        DailyCapacityUsage tomorrowUsage = new DailyCapacityUsage();
+        tomorrowUsage.setFactoryId("factory-001");
+        tomorrowUsage.setSlotDate(LocalDate.now().plusDays(1));
+        tomorrowUsage.setUsedQuantity(9500);
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
-        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now())))
-                .thenReturn(Optional.of(todayUsage));
         when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(1))))
+                .thenReturn(Optional.of(tomorrowUsage));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(2))))
                 .thenReturn(Optional.empty());
         when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -100,7 +100,7 @@ class SchedulerServiceTest {
     void scheduleOrder_lastSlotOnDueDate_isNotDelayedAndWarningIsNull() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
-        mockOrder.setCustomerDueDate(LocalDate.now());
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(1));
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
         when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
@@ -209,7 +209,7 @@ class SchedulerServiceTest {
 
         DailyCapacityUsage partialUsage = new DailyCapacityUsage();
         partialUsage.setFactoryId("factory-001");
-        partialUsage.setSlotDate(LocalDate.now());
+        partialUsage.setSlotDate(LocalDate.now().plusDays(1));
         partialUsage.setUsedQuantity(9500);
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
@@ -222,7 +222,7 @@ class SchedulerServiceTest {
         assertTrue(result.isSuccess());
         assertEquals(1, result.getSlots().size());
         assertEquals(0, mockOrder.getRemainingQuantity());
-        assertEquals(LocalDate.now(), mockOrder.getLastSlotDate());
+        assertEquals(LocalDate.now().plusDays(1), mockOrder.getLastSlotDate());
     }
 
     @Test

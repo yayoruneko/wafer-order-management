@@ -59,7 +59,17 @@ export async function login(credentials) {
   const { data } = await api.post('/auth/login', credentials, {
     skipAuth: true,
   })
-  return data
+  // 後端回傳平坦結構 { accessToken, refreshToken, username, role }
+  // 統一轉成前端期望的 { accessToken, refreshToken, user: { ... } }
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    user: {
+      username: data.username,
+      displayName: data.username,
+      role: data.role,
+    },
+  }
 }
 
 export async function logout() {
@@ -69,9 +79,4 @@ export async function logout() {
   } catch {
     // best-effort; client will clear session regardless
   }
-}
-
-export async function me() {
-  const { data } = await api.get('/auth/me')
-  return data
 }

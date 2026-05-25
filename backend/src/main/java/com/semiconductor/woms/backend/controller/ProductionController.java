@@ -55,7 +55,9 @@ public class ProductionController {
             entry.setCount(entry.getCount() + slot.getQuantity());
 
             orderRepo.findById(slot.getOrderId()).ifPresent(order -> {
-                boolean delayed = Boolean.TRUE.equals(order.getIsDelayed());
+                // Only show the delay warning icon on the final (last) slot of the order
+                boolean isLastSlot = slot.getSlotDate().equals(order.getLastSlotDate());
+                boolean delayed = isLastSlot && Boolean.TRUE.equals(order.getIsDelayed());
                 SlotOrderInfo info = new SlotOrderInfo();
                 info.setOrderId(order.getId());
                 info.setRequestedDate(order.getCustomerDueDate());
