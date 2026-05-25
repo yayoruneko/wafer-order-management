@@ -1,4 +1,4 @@
-export const createOrderStyles = {
+﻿export const createOrderStyles = {
   page: 'min-h-screen w-full bg-[#F5F1E8]',
   shell: 'mx-auto flex max-w-[760px] flex-col gap-6 px-8 py-8',
 
@@ -95,7 +95,7 @@ export const createOrderStyles = {
   calDayMuted: 'text-stone-300',
   calDaySelected: 'bg-stone-900 text-white hover:bg-stone-900',
   calDayToday: 'ring-1 ring-stone-300',
-  calDayDisabled: 'text-stone-300 cursor-not-allowed hover:bg-transparent',
+  calDayDisabled: '!text-stone-500 cursor-not-allowed hover:bg-transparent',
   calFooter:
     'mt-2 flex items-center justify-between border-t border-stone-200 pt-2',
   calFootBtn:
@@ -170,3 +170,6 @@ export const PRESET_COLORS = [
   '#3253DC', '#1428A0', '#F59E0B', '#10B981',
   '#8B5CF6', '#EC4899',
 ]
+
+
+
