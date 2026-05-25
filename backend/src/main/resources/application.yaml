@@ -24,6 +24,19 @@ spring:
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 921551057764-fkk54o13mrfdpqe657a2iike30pfhc0o.apps.googleusercontent.com
+            client-secret: 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
+            scope: email, profile
+            authorization-grant-type: authorization_code
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth?prompt=select_account
+
 server:
   port: ${SERVER_PORT:8080}
 
