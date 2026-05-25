@@ -1,4 +1,4 @@
-package com.semiconductor.woms.backend;
+﻿package com.semiconductor.woms.backend;
 
 import com.semiconductor.woms.backend.model.DailyCapacityUsage;
 import com.semiconductor.woms.backend.model.Order;
@@ -54,7 +54,7 @@ class SchedulerServiceTest {
         mockOrder.setStatus(OrderStatus.PENDING);
     }
 
-    // ── scheduleOrder (Week 1，保留原本測試) ───────────────────────────────────
+    // 鈹€鈹€ scheduleOrder (Week 1锛屼繚鐣欏師鏈脯瑭? 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     @Test
     void scheduleOrder_quantityFitsInToday_producesSingleSlotAndZerosRemaining() {
@@ -77,15 +77,15 @@ class SchedulerServiceTest {
         mockOrder.setQuantity(800);
         mockOrder.setRemainingQuantity(800);
 
-        DailyCapacityUsage todayUsage = new DailyCapacityUsage();
-        todayUsage.setFactoryId("factory-001");
-        todayUsage.setSlotDate(LocalDate.now());
-        todayUsage.setUsedQuantity(9500);
+        DailyCapacityUsage tomorrowUsage = new DailyCapacityUsage();
+        tomorrowUsage.setFactoryId("factory-001");
+        tomorrowUsage.setSlotDate(LocalDate.now().plusDays(1));
+        tomorrowUsage.setUsedQuantity(9500);
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
-        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now())))
-                .thenReturn(Optional.of(todayUsage));
         when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(1))))
+                .thenReturn(Optional.of(tomorrowUsage));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(2))))
                 .thenReturn(Optional.empty());
         when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -100,7 +100,7 @@ class SchedulerServiceTest {
     void scheduleOrder_lastSlotOnDueDate_isNotDelayedAndWarningIsNull() {
         mockOrder.setQuantity(500);
         mockOrder.setRemainingQuantity(500);
-        mockOrder.setCustomerDueDate(LocalDate.now());
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(1));
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
         when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
@@ -209,7 +209,7 @@ class SchedulerServiceTest {
 
         DailyCapacityUsage partialUsage = new DailyCapacityUsage();
         partialUsage.setFactoryId("factory-001");
-        partialUsage.setSlotDate(LocalDate.now());
+        partialUsage.setSlotDate(LocalDate.now().plusDays(1));
         partialUsage.setUsedQuantity(9500);
 
         when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
@@ -222,7 +222,7 @@ class SchedulerServiceTest {
         assertTrue(result.isSuccess());
         assertEquals(1, result.getSlots().size());
         assertEquals(0, mockOrder.getRemainingQuantity());
-        assertEquals(LocalDate.now(), mockOrder.getLastSlotDate());
+        assertEquals(LocalDate.now().plusDays(1), mockOrder.getLastSlotDate());
     }
 
     @Test
@@ -248,7 +248,7 @@ class SchedulerServiceTest {
         assertEquals(0, available);
     }
 
-    // ── releaseCapacity (Week 2) ──────────────────────────────────────────────
+    // 鈹€鈹€ releaseCapacity (Week 2) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     @Test
     void releaseCapacity_decrementsExistingUsage_whenQuantityPartial() {
@@ -282,7 +282,7 @@ class SchedulerServiceTest {
 
     @Test
     void releaseCapacity_deletesRecord_whenReleaseExceedsUsage() {
-        // 防止 usedQuantity 被設為負數
+        // 闃叉 usedQuantity 琚ō鐐鸿矤鏁?
         DailyCapacityUsage usage = new DailyCapacityUsage();
         usage.setUsedQuantity(100);
 
@@ -306,7 +306,7 @@ class SchedulerServiceTest {
         verify(capacityRepo, never()).delete(any());
     }
 
-    // ── rescheduleAll (Week 2) ────────────────────────────────────────────────
+    // 鈹€鈹€ rescheduleAll (Week 2) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     @Test
     void rescheduleAll_doesNothing_whenNoOrdersExist() {
@@ -321,7 +321,7 @@ class SchedulerServiceTest {
 
     @Test
     void rescheduleAll_releasesSlots_andResetsScheduledOrderToPending() {
-        // 用 spy 阻擋 scheduleOrder()，專注驗證「釋放階段」
+        // 鐢?spy 闃绘搵 scheduleOrder()锛屽皥娉ㄩ璀夈€岄噵鏀鹃殠娈点€?
         SchedulerServiceImpl spy = Mockito.spy(
                 new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
         doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
@@ -343,10 +343,10 @@ class SchedulerServiceTest {
 
         spy.rescheduleAll();
 
-        // slot 被刪除
+        // slot 琚埅闄?
         verify(slotRepo).deleteByOrderId("ord-s");
 
-        // 訂單欄位被重置
+        // 瑷傚柈娆勪綅琚噸缃?
         assertEquals(OrderStatus.PENDING, scheduledOrder.getStatus());
         assertEquals(500, scheduledOrder.getRemainingQuantity());
         assertNull(scheduledOrder.getLastSlotDate());
@@ -367,7 +367,7 @@ class SchedulerServiceTest {
 
         spy.rescheduleAll();
 
-        // PENDING 訂單沒有 slot 要釋放，不應呼叫這兩個方法
+        // PENDING 瑷傚柈娌掓湁 slot 瑕侀噵鏀撅紝涓嶆噳鍛煎彨閫欏叐鍊嬫柟娉?
         verify(slotRepo, never()).findByOrderId(any());
         verify(slotRepo, never()).deleteByOrderId(any());
     }
@@ -378,7 +378,7 @@ class SchedulerServiceTest {
                 new SchedulerServiceImpl(capacityRepo, slotRepo, orderRepo));
         doAnswer(inv -> null).when(spy).scheduleOrder(anyString());
 
-        // orderLate 交期較晚，orderEarly 交期較早
+        // orderLate 浜ゆ湡杓冩櫄锛宱rderEarly 浜ゆ湡杓冩棭
         Order orderLate = buildOrder("ord-late", OrderStatus.PENDING, 100);
         orderLate.setCustomerDueDate(LocalDate.now().plusDays(10));
         orderLate.setCreatedAt(LocalDateTime.now().minusHours(2));
@@ -387,13 +387,13 @@ class SchedulerServiceTest {
         orderEarly.setCustomerDueDate(LocalDate.now().plusDays(3));
         orderEarly.setCreatedAt(LocalDateTime.now().minusHours(1));
 
-        // 故意以「晚交期在前」的順序回傳，確認排序邏輯有作用
+        // 鏁呮剰浠ャ€屾櫄浜ゆ湡鍦ㄥ墠銆嶇殑闋嗗簭鍥炲偝锛岀⒑瑾嶆帓搴忛倧杓湁浣滅敤
         when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(orderLate, orderEarly));
 
         spy.rescheduleAll();
 
         InOrder inOrder = inOrder(spy);
-        inOrder.verify(spy).scheduleOrder("ord-early");  // 交期早的先排
+        inOrder.verify(spy).scheduleOrder("ord-early");  // 浜ゆ湡鏃╃殑鍏堟帓
         inOrder.verify(spy).scheduleOrder("ord-late");
     }
 
@@ -407,19 +407,19 @@ class SchedulerServiceTest {
 
         Order orderFirst = buildOrder("ord-first", OrderStatus.PENDING, 100);
         orderFirst.setCustomerDueDate(sameDate);
-        orderFirst.setCreatedAt(LocalDateTime.now().minusHours(3));  // 較早建立
+        orderFirst.setCreatedAt(LocalDateTime.now().minusHours(3));  // 杓冩棭寤虹珛
 
         Order orderSecond = buildOrder("ord-second", OrderStatus.PENDING, 100);
         orderSecond.setCustomerDueDate(sameDate);
-        orderSecond.setCreatedAt(LocalDateTime.now().minusHours(1)); // 較晚建立
+        orderSecond.setCreatedAt(LocalDateTime.now().minusHours(1)); // 杓冩櫄寤虹珛
 
-        // 故意以「較晚在前」的順序回傳，確認 FIFO 排序有作用
+        // 鏁呮剰浠ャ€岃純鏅氬湪鍓嶃€嶇殑闋嗗簭鍥炲偝锛岀⒑瑾?FIFO 鎺掑簭鏈変綔鐢?
         when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of(orderSecond, orderFirst));
 
         spy.rescheduleAll();
 
         InOrder inOrder = inOrder(spy);
-        inOrder.verify(spy).scheduleOrder("ord-first");   // createdAt 早的先排
+        inOrder.verify(spy).scheduleOrder("ord-first");   // createdAt 鏃╃殑鍏堟帓
         inOrder.verify(spy).scheduleOrder("ord-second");
     }
 
@@ -438,14 +438,14 @@ class SchedulerServiceTest {
 
         spy.rescheduleAll();
 
-        // 兩筆訂單都必須被排程
+        // 鍏╃瓎瑷傚柈閮藉繀闋堣鎺掔▼
         verify(spy).scheduleOrder("ord-1");
         verify(spy).scheduleOrder("ord-2");
     }
 
     @Test
     void rescheduleAll_pendingOrder_isScheduledAfterRelease() {
-        // 整合驗證：一筆 PENDING 訂單在全局重排後成功排程
+        // 鏁村悎椹楄瓑锛氫竴绛?PENDING 瑷傚柈鍦ㄥ叏灞€閲嶆帓寰屾垚鍔熸帓绋?
         Order pendingOrder = buildOrder("ord-p", OrderStatus.PENDING, 100);
         pendingOrder.setCustomerDueDate(LocalDate.now().plusDays(5));
 
@@ -461,7 +461,7 @@ class SchedulerServiceTest {
         assertNotNull(pendingOrder.getLastSlotDate());
     }
 
-    // ── updateOrderStatusesByDate ─────────────────────────────────────────────
+    // 鈹€鈹€ updateOrderStatusesByDate 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     @Test
     void updateOrderStatusesByDate_scheduledOrderWithPastSlot_transitionsToInProduction() {
@@ -540,7 +540,7 @@ class SchedulerServiceTest {
         verify(orderRepo, never()).save(any());
     }
 
-    // ── 輔助方法 ───────────────────────────────────────────────────────────────
+    // 鈹€鈹€ 杓斿姪鏂规硶 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private Order buildOrder(String id, OrderStatus status, int quantity) {
         Order o = new Order();
@@ -560,3 +560,4 @@ class SchedulerServiceTest {
         return o;
     }
 }
+
