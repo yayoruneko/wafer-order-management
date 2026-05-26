@@ -4,6 +4,7 @@ import com.semiconductor.woms.backend.model.User;
 import com.semiconductor.woms.backend.model.enums.UserType;
 import com.semiconductor.woms.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -20,7 +21,7 @@ import java.util.UUID;
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     @Autowired
-    private JwtUtils jwtUtils; 
+    private JwtUtils jwtUtils;
 
     @Autowired
     private UserRepository userRepository;
@@ -28,6 +29,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Autowired
     @org.springframework.context.annotation.Lazy
     private PasswordEncoder passwordEncoder;
+
+    // 👇 讓 Spring 動態讀取前端的網址，預設是 localhost (走 Nginx 的 80 port)
+    @Value("${woms.frontend.url:http://localhost}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
@@ -60,10 +65,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         });
 
         // 3. 產生 JWT Token 
-        
         String token = jwtUtils.generateAccessToken(user.getUsername(), user.getRole().name()); 
         
-        // 4. 重導回前端
+        // 4. 重導回前端 
         String targetUrl = "http://localhost:3000/oauth2/redirect?token=" + token;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
