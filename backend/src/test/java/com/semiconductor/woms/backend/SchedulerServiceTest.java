@@ -540,6 +540,233 @@ class SchedulerServiceTest {
         verify(orderRepo, never()).save(any());
     }
 
+    // ── 新增的邊界 / 規則測試 ────────────────────────────────────────────────
+    // 對應 SCHEDULING_RULES.md 中尚未被涵蓋的細節：
+    //  - cursor 從「明天」開始，今天不會被排入
+    //  - lastSlotDate == customerDueDate 為邊界，不應視為延誤
+    //  - 當日 available == 0 時應跳過、繼續往下一天
+    //  - 90 天內產能不足時 status 必須維持 PENDING、不可變成 SCHEDULED
+    //  - rescheduleAll 不應包含 IN_PRODUCTION 訂單
+    //  - capacityRepo 的 usage 紀錄會在每個 slot 寫入時被更新
+
+    @Test
+    void scheduleOrder_neverSchedulesIntoToday_cursorStartsTomorrow() {
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        // 規則：cursor 從 LocalDate.now().plusDays(1) 開始，今天絕不會出現在排程中
+        assertTrue(result.getSlots().stream()
+                .noneMatch(s -> s.getSlotDate().equals(LocalDate.now())),
+                "今日不應該被排入任何 slot");
+        assertEquals(LocalDate.now().plusDays(1), result.getSlots().get(0).getSlotDate());
+    }
+
+    @Test
+    void scheduleOrder_lastSlotExactlyOnDueDate_isNotDelayed() {
+        // 邊界：lastSlotDate == customerDueDate → 不算延誤（lastSlotDate.isAfter 為 false）
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(1));  // 明天，正好等於第一個 slot 日
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertFalse(result.isDelayed(), "lastSlotDate 等於 customerDueDate 不應視為延誤");
+        assertEquals(0, mockOrder.getDelayDays());
+        assertEquals(mockOrder.getCustomerDueDate(), mockOrder.getLastSlotDate());
+    }
+
+    @Test
+    void scheduleOrder_skipsDaysWithZeroCapacity_continuesToNextAvailableDay() {
+        // 第一個目標日（明天）滿載 → 應跳過、改排到後天
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+
+        DailyCapacityUsage fullTomorrow = new DailyCapacityUsage();
+        fullTomorrow.setUsedQuantity(10000);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(1))))
+                .thenReturn(Optional.of(fullTomorrow));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(2))))
+                .thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getSlots().size(), "明天滿載應跳過，只在後天產生 1 個 slot");
+        assertEquals(LocalDate.now().plusDays(2), result.getSlots().get(0).getSlotDate());
+    }
+
+    @Test
+    void scheduleOrder_unschedulable_keepsStatusAsPending() {
+        // 90 天內無解 → 不可把 status 改成 SCHEDULED
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+
+        DailyCapacityUsage full = new DailyCapacityUsage();
+        full.setUsedQuantity(10000);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any()))
+                .thenReturn(Optional.of(full));
+
+        schedulerService.scheduleOrder("order-001");
+
+        assertEquals(OrderStatus.PENDING, mockOrder.getStatus(),
+                "排程失敗時 status 必須維持 PENDING，不可變成 SCHEDULED");
+        verify(slotRepo, never()).saveAll(any());
+    }
+
+    @Test
+    void scheduleOrder_writesCapacityUsageOncePerSlotDay() {
+        // 驗證 capacity 帳本：每個 slot 日都會寫入一筆 usage 紀錄
+        mockOrder.setQuantity(800);
+        mockOrder.setRemainingQuantity(800);
+
+        DailyCapacityUsage almostFull = new DailyCapacityUsage();
+        almostFull.setUsedQuantity(9500);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(1))))
+                .thenReturn(Optional.of(almostFull));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), eq(LocalDate.now().plusDays(2))))
+                .thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        schedulerService.scheduleOrder("order-001");
+
+        // 跨兩天 → capacityRepo.save 至少呼叫 2 次
+        verify(capacityRepo, atLeast(2)).save(any(DailyCapacityUsage.class));
+    }
+
+    @Test
+    void rescheduleAll_doesNotIncludeInProductionOrders() {
+        // 規則 5：rescheduleAll 只動 PENDING/SCHEDULED，IN_PRODUCTION 不移動
+        // 這裡藉由驗證 findByStatusIn 的呼叫參數確保查詢條件正確
+        when(orderRepo.findByStatusIn(anyList())).thenReturn(List.of());
+
+        schedulerService.rescheduleAll();
+
+        ArgumentCaptor<List<OrderStatus>> captor = ArgumentCaptor.forClass(List.class);
+        verify(orderRepo).findByStatusIn(captor.capture());
+        List<OrderStatus> requested = captor.getValue();
+        assertTrue(requested.contains(OrderStatus.PENDING));
+        assertTrue(requested.contains(OrderStatus.SCHEDULED));
+        assertFalse(requested.contains(OrderStatus.IN_PRODUCTION),
+                "rescheduleAll 不應請求 IN_PRODUCTION 訂單");
+        assertFalse(requested.contains(OrderStatus.COMPLETED));
+        assertFalse(requested.contains(OrderStatus.CANCELLED));
+    }
+
+    @Test
+    void getAvailableCapacity_returnsRemainingExactly_atBoundary() {
+        // 邊界：usedQuantity = 9999 → 還剩 1
+        DailyCapacityUsage almostFull = new DailyCapacityUsage();
+        almostFull.setUsedQuantity(9999);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(almostFull));
+
+        assertEquals(1, schedulerService.getAvailableCapacity("factory-001", LocalDate.now()));
+    }
+
+    @Test
+    void scheduleOrder_alreadyScheduledOrder_isIdempotentNoOp() {
+        // Regression: a stale SCHEDULE_ORDER task can fire on an order that a prior
+        // RESCHEDULE_ALL already scheduled (status=SCHEDULED, remainingQuantity=0).
+        // The old impl crashed with `Index -1 out of bounds for length 0` at
+        // `slots.get(slots.size() - 1)`. Now it must be a no-op that returns the
+        // existing slots without touching capacity / order state.
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(0);
+        mockOrder.setStatus(OrderStatus.SCHEDULED);
+        mockOrder.setIsDelayed(false);
+
+        ProductionSlot existing = new ProductionSlot();
+        existing.setOrderId("order-001");
+        existing.setSlotDate(LocalDate.now().plusDays(2));
+        existing.setQuantity(500);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(slotRepo.findByOrderId("order-001")).thenReturn(List.of(existing));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess());
+        assertFalse(result.isDelayed());
+        assertEquals(1, result.getSlots().size(),
+                "Should return the existing slots, not throw or wipe them");
+        // No mutations: order is not re-saved, no slots saved, capacity untouched
+        verify(orderRepo, never()).save(any());
+        verify(slotRepo, never()).saveAll(any());
+        verify(capacityRepo, never()).save(any());
+        verify(capacityRepo, never()).delete(any());
+    }
+
+    @Test
+    void scheduleOrder_alreadyScheduledOrderIsDelayed_propagatesDelayFlag() {
+        // QueuePoller decides whether to enqueueRescheduleAll based on result.isDelayed().
+        // After the idempotency guard, we must still report the actual delayed state
+        // so a recovery RESCHEDULE_ALL doesn't get spuriously skipped (or fired forever).
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(0);
+        mockOrder.setStatus(OrderStatus.SCHEDULED);
+        mockOrder.setIsDelayed(true);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(slotRepo.findByOrderId("order-001")).thenReturn(List.of());
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess());
+        assertTrue(result.isDelayed(), "Delayed flag must reflect the order's current state");
+    }
+
+    @Test
+    void scheduleOrder_cancelledOrder_isNoOp() {
+        // Defence-in-depth: SCHEDULE_ORDER must never re-allocate slots for a
+        // CANCELLED order even if a stale task arrives.
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setStatus(OrderStatus.CANCELLED);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(slotRepo.findByOrderId("order-001")).thenReturn(List.of());
+
+        schedulerService.scheduleOrder("order-001");
+
+        verify(slotRepo, never()).saveAll(any());
+        verify(orderRepo, never()).save(any());
+        assertEquals(OrderStatus.CANCELLED, mockOrder.getStatus(),
+                "Cancelled status must not flip to SCHEDULED");
+    }
+
+    @Test
+    void releaseCapacity_decrementsToExactlyZero_deletesRecord() {
+        // 邊界：剛好歸還等於 usedQuantity 的量 → 紀錄應被刪除
+        DailyCapacityUsage usage = new DailyCapacityUsage();
+        usage.setUsedQuantity(500);
+
+        when(capacityRepo.findByFactoryIdAndSlotDate("factory-001", LocalDate.now()))
+                .thenReturn(Optional.of(usage));
+
+        schedulerService.releaseCapacity("factory-001", LocalDate.now(), 500);
+
+        verify(capacityRepo).delete(usage);
+        verify(capacityRepo, never()).save(any());
+    }
+
     // ── 輔助方法 ───────────────────────────────────────────────────────────────
 
     private Order buildOrder(String id, OrderStatus status, int quantity) {
