@@ -238,8 +238,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-                window.location.href = `${baseUrl}/oauth2/authorization/google`;
+                window.location.href = `/api/oauth2/authorization/google`;
               }}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 transition hover:bg-stone-50 hover:border-stone-400"
             >
