@@ -2,6 +2,7 @@ package com.semiconductor.woms.backend.service;
 
 import com.semiconductor.woms.backend.dto.OrderRequest;
 import com.semiconductor.woms.backend.dto.OrderResponse;
+import com.semiconductor.woms.backend.dto.OrderStatsResponse;
 import com.semiconductor.woms.backend.dto.OrderUpdateRequest;
 import com.semiconductor.woms.backend.model.Customer;
 import com.semiconductor.woms.backend.model.Order;
@@ -18,13 +19,16 @@ import com.semiconductor.woms.backend.repository.ProductionSlotRepository;
 import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -461,6 +465,233 @@ class OrderServiceTest {
         verify(schedulerService, never()).releaseCapacity(any(), any(), anyInt());
         // deleteByOrderId 仍然會被呼叫（對空集合操作，no-op）
         verify(productionSlotRepository).deleteByOrderId("o-1");
+    }
+
+    // ── 新增的邊界 / 規則測試 ────────────────────────────────────────────────
+    // 對應 SCHEDULING_RULES.md 中尚未被涵蓋的細節：
+    //  - 交期 == 今天 為邊界，應被拒絕（規則：必須晚於今日）
+    //  - updateOrder 樂觀鎖：updatedAt 不一致應回 409（完全沒被測過）
+    //  - updateOrder / cancelOrder：必須寫入 OrderHistory snapshot
+    //  - getOrderSlots / getOrderHistory：訂單不存在時必須拋例外
+    //  - getFilteredOrders: status / view 過濾條件
+    //  - getOrderStats: 各狀態的計數
+
+    @Test
+    void createOrder_rejectsDueDateEqualToToday() {
+        // 邊界：規則明確要求「交期必須晚於今日」，今天本身應被拒絕
+        OrderRequest req = buildCreateRequest(100, LocalDate.now());
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> orderService.createOrder(req));
+        assertTrue(ex.getMessage().contains("交期"));
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void updateOrder_throwsConflict_whenUpdatedAtMismatch() {
+        // 規則四之 2：使用者帶上 updatedAt，後端比對不符即回 409
+        Order order = buildExistingOrder("o-1", OrderStatus.SCHEDULED, 100, 0);
+        order.setUpdatedAt(LocalDateTime.now());
+        when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
+
+        OrderUpdateRequest req = buildUpdateRequest(200, LocalDate.now().plusDays(7));
+        req.setUpdatedAt(LocalDateTime.now().minusHours(1));  // 舊資料
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> orderService.updateOrder("o-1", req));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(orderRepository, never()).save(any());
+        verify(schedulingQueueService, never()).enqueueRescheduleAll();
+    }
+
+    @Test
+    void updateOrder_succeeds_whenUpdatedAtMatches() {
+        Order order = buildExistingOrder("o-1", OrderStatus.SCHEDULED, 100, 0);
+        LocalDateTime exact = LocalDateTime.now();
+        order.setUpdatedAt(exact);
+
+        when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
+        when(productionSlotRepository.findByOrderId("o-1")).thenReturn(List.of());
+        when(orderRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(customerRepository.findById(any())).thenReturn(Optional.empty());
+
+        OrderUpdateRequest req = buildUpdateRequest(200, LocalDate.now().plusDays(7));
+        req.setUpdatedAt(exact);  // 與 DB 一致
+
+        assertDoesNotThrow(() -> orderService.updateOrder("o-1", req));
+        verify(schedulingQueueService).enqueueRescheduleAll();
+    }
+
+    @Test
+    void updateOrder_skipsOptimisticLockCheck_whenClientOmitsUpdatedAt() {
+        // 前端沒帶 updatedAt 時，後端應視為「不檢查」，正常處理
+        Order order = buildExistingOrder("o-1", OrderStatus.SCHEDULED, 100, 0);
+        order.setUpdatedAt(LocalDateTime.now());
+
+        when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
+        when(productionSlotRepository.findByOrderId("o-1")).thenReturn(List.of());
+        when(orderRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(customerRepository.findById(any())).thenReturn(Optional.empty());
+
+        OrderUpdateRequest req = buildUpdateRequest(200, LocalDate.now().plusDays(7));
+        // 注意：req.updatedAt 為 null
+        assertDoesNotThrow(() -> orderService.updateOrder("o-1", req));
+    }
+
+    @Test
+    void updateOrder_writesHistorySnapshotWithModifiedChangeType() {
+        Order order = buildExistingOrder("o-1", OrderStatus.SCHEDULED, 100, 0);
+        when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
+        when(productionSlotRepository.findByOrderId("o-1")).thenReturn(List.of());
+        when(orderRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(customerRepository.findById(any())).thenReturn(Optional.empty());
+
+        orderService.updateOrder("o-1", buildUpdateRequest(200, LocalDate.now().plusDays(7)));
+
+        ArgumentCaptor<com.semiconductor.woms.backend.model.OrderHistory> captor =
+                ArgumentCaptor.forClass(com.semiconductor.woms.backend.model.OrderHistory.class);
+        verify(orderHistoryRepository).save(captor.capture());
+        assertEquals("o-1", captor.getValue().getOrderId());
+        assertEquals(com.semiconductor.woms.backend.model.enums.ChangeType.MODIFIED,
+                captor.getValue().getChangeType());
+        // 快照應為「修改前」的數量
+        assertEquals(100, captor.getValue().getSnapshotQuantity());
+    }
+
+    @Test
+    void cancelOrder_writesHistorySnapshotWithCancelledChangeType() {
+        Order order = buildExistingOrder("o-1", OrderStatus.SCHEDULED, 500, 0);
+        when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
+        when(productionSlotRepository.findByOrderId("o-1")).thenReturn(List.of());
+        when(orderRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        orderService.cancelOrder("o-1");
+
+        ArgumentCaptor<com.semiconductor.woms.backend.model.OrderHistory> captor =
+                ArgumentCaptor.forClass(com.semiconductor.woms.backend.model.OrderHistory.class);
+        verify(orderHistoryRepository).save(captor.capture());
+        assertEquals(com.semiconductor.woms.backend.model.enums.ChangeType.CANCELLED,
+                captor.getValue().getChangeType());
+        // 快照保留取消「前」的狀態
+        assertEquals("SCHEDULED", captor.getValue().getSnapshotStatus());
+    }
+
+    // ── getOrderSlots / getOrderHistory 邊界 ──────────────────────────────────
+
+    @Test
+    void getOrderSlots_throwsWhenOrderNotFound() {
+        when(orderRepository.existsById("ghost")).thenReturn(false);
+        assertThrows(RuntimeException.class, () -> orderService.getOrderSlots("ghost"));
+        verify(productionSlotRepository, never()).findByOrderId(any());
+    }
+
+    @Test
+    void getOrderSlots_returnsSlotsSortedBySlotDate() {
+        when(orderRepository.existsById("o-1")).thenReturn(true);
+        ProductionSlot later = buildSlot("factory-001", LocalDate.now().plusDays(5), 200);
+        ProductionSlot earlier = buildSlot("factory-001", LocalDate.now().plusDays(1), 100);
+        // 故意以亂序回傳，驗證 service 自己會排序
+        when(productionSlotRepository.findByOrderId("o-1")).thenReturn(List.of(later, earlier));
+
+        var slots = orderService.getOrderSlots("o-1");
+        assertEquals(2, slots.size());
+        assertEquals(LocalDate.now().plusDays(1), slots.get(0).getSlotDate());
+        assertEquals(LocalDate.now().plusDays(5), slots.get(1).getSlotDate());
+    }
+
+    @Test
+    void getOrderHistory_throwsWhenOrderNotFound() {
+        when(orderRepository.existsById("ghost")).thenReturn(false);
+        assertThrows(ResponseStatusException.class,
+                () -> orderService.getOrderHistory("ghost"));
+        verify(orderHistoryRepository, never()).findByOrderIdOrderByChangedAtDesc(any());
+    }
+
+    // ── getFilteredOrders / getOrderStats ────────────────────────────────────
+
+    @Test
+    void getFilteredOrders_viewDelayed_excludesCancelled() {
+        // 規則：view=delayed 必須排除 CANCELLED（即使該訂單之前是 delayed）
+        Order delayedScheduled = buildExistingOrder("o-d", OrderStatus.SCHEDULED, 100, 0);
+        delayedScheduled.setIsDelayed(true);
+        Order delayedButCancelled = buildExistingOrder("o-c", OrderStatus.CANCELLED, 100, 0);
+        delayedButCancelled.setIsDelayed(true);
+
+        when(orderRepository.findAll(any(Sort.class)))
+                .thenReturn(List.of(delayedScheduled, delayedButCancelled));
+        when(customerRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<OrderResponse> result = orderService.getFilteredOrders(
+                null, null, null, null, null, "delayed");
+
+        assertEquals(1, result.size());
+        assertEquals("o-d", result.get(0).getId());
+    }
+
+    @Test
+    void getFilteredOrders_viewInProduction_returnsOnlyInProduction() {
+        Order inProd = buildExistingOrder("o-p", OrderStatus.IN_PRODUCTION, 100, 50);
+        Order pending = buildExistingOrder("o-x", OrderStatus.PENDING, 100, 100);
+
+        when(orderRepository.findAll(any(Sort.class))).thenReturn(List.of(inProd, pending));
+        when(customerRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<OrderResponse> result = orderService.getFilteredOrders(
+                null, null, null, null, null, "in_production");
+
+        assertEquals(1, result.size());
+        assertEquals("o-p", result.get(0).getId());
+    }
+
+    @Test
+    void getFilteredOrders_statusFilter_returnsOnlyMatching() {
+        Order pending = buildExistingOrder("o-1", OrderStatus.PENDING, 100, 100);
+        Order scheduled = buildExistingOrder("o-2", OrderStatus.SCHEDULED, 100, 0);
+
+        when(orderRepository.findAll(any(Sort.class))).thenReturn(List.of(pending, scheduled));
+        when(customerRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<OrderResponse> result = orderService.getFilteredOrders(
+                null, null, "SCHEDULED", null, null, null);
+
+        assertEquals(1, result.size());
+        assertEquals("o-2", result.get(0).getId());
+    }
+
+    @Test
+    void getFilteredOrders_statusAll_returnsAllRegardlessOfStatus() {
+        // status 為 "ALL" 在 controller 約定下相當於不過濾
+        Order pending = buildExistingOrder("o-1", OrderStatus.PENDING, 100, 100);
+        Order cancelled = buildExistingOrder("o-2", OrderStatus.CANCELLED, 100, 100);
+
+        when(orderRepository.findAll(any(Sort.class))).thenReturn(List.of(pending, cancelled));
+        when(customerRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<OrderResponse> result = orderService.getFilteredOrders(
+                null, null, "ALL", null, null, null);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void getOrderStats_excludesCancelledFromTotalWafers() {
+        // 規則：totalWafers 只統計未取消的訂單
+        Order a = buildExistingOrder("a", OrderStatus.SCHEDULED, 100, 0);
+        Order b = buildExistingOrder("b", OrderStatus.IN_PRODUCTION, 200, 50);
+        b.setIsDelayed(true);
+        Order c = buildExistingOrder("c", OrderStatus.CANCELLED, 300, 300);
+
+        when(orderRepository.findAll()).thenReturn(List.of(a, b, c));
+
+        OrderStatsResponse stats = orderService.getOrderStats();
+        assertEquals(3, stats.getTotal());
+        assertEquals(1, stats.getInProduction());
+        assertEquals(1, stats.getDelayed(),
+                "CANCELLED + isDelayed 的訂單不應被視為延誤");
+        assertEquals(300L, stats.getTotalWafers(),
+                "CANCELLED 訂單的 quantity 不應計入 totalWafers");
     }
 
     // ── 輔助方法 ───────────────────────────────────────────────────────────────
