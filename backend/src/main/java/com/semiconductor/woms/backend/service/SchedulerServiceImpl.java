@@ -34,6 +34,17 @@ public class SchedulerServiceImpl implements SchedulerService {
         var order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
+        // Idempotency guard. A SCHEDULE_ORDER task can race with a RESCHEDULE_ALL
+        // task that already handled this order: the queued SCHEDULE_ORDER then fires
+        // on an already-scheduled (or cancelled / in-production / completed) order
+        // with remainingQuantity == 0. Treat it as a no-op rather than crashing on
+        // the empty `slots` list at `slots.get(slots.size() - 1)` below.
+        if (order.getStatus() != OrderStatus.PENDING) {
+            List<ProductionSlot> existing = slotRepo.findByOrderId(orderId);
+            return ScheduleResult.success(orderId, existing,
+                    Boolean.TRUE.equals(order.getIsDelayed()));
+        }
+
         int remaining = order.getRemainingQuantity();
         LocalDate cursor = LocalDate.now().plusDays(1);
         LocalDate deadline = cursor.plusDays(MAX_LOOKAHEAD_DAYS);
