@@ -10,6 +10,9 @@ import StatsChartsPage from './pages/StatsChartsPage'
 import { AuthProvider } from './auth/AuthProvider'
 import ProtectedRoute from './auth/ProtectedRoute'
 import I18nProvider from './i18n/I18nProvider'
+import OAuth2Redirect from './components/OAuth2Redirect'; 
+
+
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -95,6 +98,50 @@ export default function App() {
             },
           }}
         />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <OrderListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/new"
+            element={
+              <ProtectedRoute>
+                <CreateOrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditOrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <UserAdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
+        </Routes>
         <AnimatedRoutes />
         </AuthProvider>
       </I18nProvider>

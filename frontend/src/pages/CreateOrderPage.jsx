@@ -98,11 +98,15 @@ export default function CreateOrderPage() {
   }, [delayInfo, accepting, cancelling, cancelCreatedOrder, navigate, t])
 
   const handleAddCustomer = useCallback(
-    ({ name, code }) => {
-      addCustomer({ name, code })
-      setAddOpen(false)
+    async ({ name, code }) => {
+      try {
+        await addCustomer({ name, code })
+        setAddOpen(false)
+      } catch (err) {
+        toast.error(err?.message ?? t.toast.genericError, { id: 'add-customer' })
+      }
     },
-    [addCustomer],
+    [addCustomer, t],
   )
 
   return (

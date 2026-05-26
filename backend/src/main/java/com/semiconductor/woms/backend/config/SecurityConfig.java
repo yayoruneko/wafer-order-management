@@ -3,6 +3,7 @@ package com.semiconductor.woms.backend.config;
 import com.semiconductor.woms.backend.security.JwtAccessDeniedHandler;
 import com.semiconductor.woms.backend.security.JwtAuthenticationEntryPoint;
 import com.semiconductor.woms.backend.security.JwtAuthenticationFilter;
+import com.semiconductor.woms.backend.security.OAuth2SuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,9 @@ public class SecurityConfig {
     @Autowired
     private JwtAccessDeniedHandler accessDeniedHandler;
 
+    @Autowired
+    private OAuth2SuccessHandler oAuth2SuccessHandler;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -50,6 +54,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)      // 有 Token 但權限不對
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -57,6 +62,10 @@ public class SecurityConfig {
 
                         // 使用者管理
                         .requestMatchers("/api/users/**").hasAuthority("SUPER_ADMIN")
+
+                        // 客戶相關
+                        .requestMatchers(HttpMethod.GET, "/api/customers/**").hasAnyAuthority("VIEWER", "ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/customers/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
 
                         // 訂單相關
                         .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyAuthority("VIEWER", "ADMIN", "SUPER_ADMIN")
@@ -71,10 +80,10 @@ public class SecurityConfig {
 
                         // 其他所有請求都必須登入
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandler)
                 );
-//                .oauth2Login(oauth2 -> oauth2
-//                        .successHandler(oAuth2SuccessHandler()) // 處理 SSO 邏輯
-//                );;
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
