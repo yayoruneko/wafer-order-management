@@ -14,10 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, String> {
 
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM Order o") 
-    void truncateTable();
+   
     List<Order> findByFactoryId(String factoryId);
 
     List<Order> findByStatus(OrderStatus status);

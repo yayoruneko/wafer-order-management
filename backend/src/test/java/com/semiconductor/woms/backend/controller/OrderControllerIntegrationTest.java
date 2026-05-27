@@ -61,6 +61,9 @@ class OrderControllerIntegrationTest {
     
     @Autowired
     private com.semiconductor.woms.backend.repository.OrderRepository orderRepository;
+    
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @BeforeEach
     void setupAdminUser() {
@@ -74,12 +77,13 @@ class OrderControllerIntegrationTest {
             userRepository.save(admin);
         }
     }
+    
     @AfterEach
+    @org.springframework.transaction.annotation.Transactional 
     void tearDown() {
 
-        orderRepository.truncateTable();
-
-        customerRepository.deleteAll();
+        entityManager.createNativeQuery("DELETE FROM orders").executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM customers").executeUpdate();
     }
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
