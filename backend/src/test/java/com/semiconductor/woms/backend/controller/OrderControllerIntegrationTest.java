@@ -18,7 +18,16 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -49,7 +58,10 @@ class OrderControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
-
+    
+    @Autowired
+    private com.semiconductor.woms.backend.repository.OrderRepository orderRepository;
+    
     @BeforeEach
     void setupAdminUser() {
         if (userRepository.findByUsername("admin").isEmpty()) {
@@ -61,6 +73,12 @@ class OrderControllerIntegrationTest {
             admin.setCreatedAt(LocalDateTime.now());
             userRepository.save(admin);
         }
+    }
+    @AfterEach
+    void tearDown() {
+        // 順序很重要：先刪訂單，再刪客戶
+        orderRepository.deleteAll();
+        customerRepository.deleteAll();
     }
 
     @Test
