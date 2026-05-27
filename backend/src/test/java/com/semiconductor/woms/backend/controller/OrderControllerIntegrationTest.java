@@ -61,7 +61,7 @@ class OrderControllerIntegrationTest {
     
     @Autowired
     private com.semiconductor.woms.backend.repository.OrderRepository orderRepository;
-    
+
     @BeforeEach
     void setupAdminUser() {
         if (userRepository.findByUsername("admin").isEmpty()) {
@@ -76,11 +76,11 @@ class OrderControllerIntegrationTest {
     }
     @AfterEach
     void tearDown() {
-        // 順序很重要：先刪訂單，再刪客戶
-        orderRepository.deleteAll();
+
+        orderRepository.truncateTable();
+
         customerRepository.deleteAll();
     }
-
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
         Customer customer = new Customer();
