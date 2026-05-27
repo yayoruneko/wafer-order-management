@@ -79,17 +79,15 @@ class OrderControllerIntegrationTest {
     }
     
     @AfterEach
-    @org.springframework.transaction.annotation.Transactional 
     void tearDown() {
 
-        entityManager.createNativeQuery("DELETE FROM orders").executeUpdate();
-        entityManager.createNativeQuery("DELETE FROM customers").executeUpdate();
     }
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
+        String randomCode = "CUST-" + UUID.randomUUID().toString().substring(0, 8);
         Customer customer = new Customer();
-        customer.setCustomerCode("CUST-INT");
-        customer.setName("Integration Customer");
+        customer.setCustomerCode(randomCode);
+        customer.setName("Integration Customer"+ randomCode);
         customer.setIsActive(true);
         Customer savedCustomer = customerRepository.save(customer);
 
