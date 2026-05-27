@@ -127,7 +127,7 @@ const zhTW = {
     subtitle: '管理所有客戶的生產排程',
     createOrder: '建立訂單',
     tabs: {
-      all: '全部',
+      all: '待生產',
       delayed: '延遲',
       in_production: '生產中',
       mine: '我的訂單',
@@ -151,9 +151,7 @@ const zhTW = {
     cancelOrderAria: (id) => `取消訂單 ${id}`,
     emptyResults: '沒有訂單符合篩選條件。',
     showing: (start, end, filtered, total) =>
-      total === filtered
-        ? `顯示 ${start}–${end} 筆 / 共 ${filtered} 筆訂單`
-        : `顯示 ${start}–${end} 筆 / 共 ${filtered} 筆訂單（從 ${total} 筆篩選）`,
+      `顯示 ${start}–${end} 筆 / 共 ${filtered} 筆訂單`,
     prev: '上一頁',
     next: '下一頁',
     pageAria: (n) => `第 ${n} 頁`,
