@@ -124,6 +124,9 @@ export default function useOrders() {
         next = mapped.filter(isCancelled)
       } else if (currentView === 'history') {
         next = mapped.filter(isHistoryOrder)
+      } else if (currentView === 'mine') {
+        // 我的訂單：顯示此使用者建立的所有訂單（含已完成/已取消），與徽章計數一致
+        next = mapped
       } else {
         next = mapped.filter(
           (o) => !isCancelled(o) && !isHistoryOrder(o),
