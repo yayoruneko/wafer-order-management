@@ -752,6 +752,110 @@ class SchedulerServiceTest {
                 "Cancelled status must not flip to SCHEDULED");
     }
 
+    // ── 邊界與爆量案例 ───────────────────────────────────────────────────────
+
+    @Test
+    void scheduleOrder_singleWaferFitsIntoOneRemainingSlot_atBoundary() {
+        // 邊界：所有天都 used=9999、剩 1 片；單片訂單能在第一天就排上
+        mockOrder.setQuantity(1);
+        mockOrder.setRemainingQuantity(1);
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(10));
+
+        DailyCapacityUsage near = new DailyCapacityUsage();
+        near.setUsedQuantity(9999);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any()))
+                .thenReturn(Optional.of(near));
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getSlots().size());
+        assertEquals(1, result.getSlots().get(0).getQuantity());
+        assertEquals(LocalDate.now().plusDays(1), result.getSlots().get(0).getSlotDate());
+    }
+
+    @Test
+    void scheduleOrder_spansFinalDayOfLookaheadWindow_isStillScheduled() {
+        // 邊界：訂單剛好需要排到 lookahead 期間的最後一天才能完成
+        // 前 89 天滿載，第 90 天空 → 訂單 500 片只能排在第 90 天
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(100));
+
+        DailyCapacityUsage full = new DailyCapacityUsage();
+        full.setUsedQuantity(10000);
+        LocalDate lastDay = LocalDate.now().plusDays(91);  // tomorrow + 90 = day 91
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenAnswer(inv -> {
+            LocalDate d = inv.getArgument(1);
+            return d.equals(lastDay) ? Optional.empty() : Optional.of(full);
+        });
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isSuccess(), "正好能在 lookahead 期內完成，不應 unschedulable");
+        assertEquals(1, result.getSlots().size());
+        assertEquals(lastDay, result.getSlots().get(0).getSlotDate());
+    }
+
+    @Test
+    void scheduleOrder_needsOneDayPastLookaheadWindow_isUnschedulable() {
+        // 邊界對照：前 90 天全滿，只有第 91 天空 → 已超出 lookahead → unschedulable
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setCustomerDueDate(LocalDate.now().plusDays(100));
+
+        DailyCapacityUsage full = new DailyCapacityUsage();
+        full.setUsedQuantity(10000);
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenAnswer(inv -> {
+            LocalDate d = inv.getArgument(1);
+            // 只有 deadline 之後才有空位
+            return d.isAfter(LocalDate.now().plusDays(91))
+                    ? Optional.empty() : Optional.of(full);
+        });
+
+        ScheduleResult result = schedulerService.scheduleOrder("order-001");
+
+        assertTrue(result.isUnschedulable(),
+                "lookahead 期內無解 → 必須 unschedulable，不可往更遠探");
+        assertEquals(OrderStatus.PENDING, mockOrder.getStatus());
+    }
+
+    @Test
+    void scheduleOrder_specDrift_delayReasonFieldNotImplemented() {
+        // SCHEDULING_RULES.md §6 定義了 delayReason 列舉
+        //   (CAPACITY_FULL / MANUAL_DATE_UNREACHABLE)，
+        // 但 Order entity 目前沒有 delayReason 欄位，scheduleOrder 也不會設定它。
+        // 這個測試把這份「規格 / 實作 漂移」標記出來：
+        //   - 若未來補上 delayReason 欄位，這個測試會自動失敗，提示要更新測試
+        //   - 若決定移除規則中這條，請刪掉這個測試
+        mockOrder.setQuantity(500);
+        mockOrder.setRemainingQuantity(500);
+        mockOrder.setCustomerDueDate(LocalDate.now().minusDays(1));  // 必然 delayed
+
+        when(orderRepo.findById("order-001")).thenReturn(Optional.of(mockOrder));
+        when(capacityRepo.findByFactoryIdAndSlotDate(any(), any())).thenReturn(Optional.empty());
+        when(slotRepo.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+
+        schedulerService.scheduleOrder("order-001");
+        assertTrue(mockOrder.getIsDelayed());
+
+        // 反向斷言：當前實作不應有 getDelayReason() 方法。
+        // 如果哪天加上了，反射這裡會找到方法 → fail，提醒同步更新規則覆蓋的測試。
+        boolean methodExists = java.util.Arrays.stream(mockOrder.getClass().getMethods())
+                .anyMatch(m -> m.getName().equals("getDelayReason"));
+        assertFalse(methodExists,
+                "Order.getDelayReason() 已存在；請依 SCHEDULING_RULES.md §6 " +
+                "為 CAPACITY_FULL / MANUAL_DATE_UNREACHABLE 新增正向測試，並移除此漂移標記");
+    }
+
     @Test
     void releaseCapacity_decrementsToExactlyZero_deletesRecord() {
         // 邊界：剛好歸還等於 usedQuantity 的量 → 紀錄應被刪除
