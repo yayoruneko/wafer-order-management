@@ -186,6 +186,27 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
       Tests  6 passed (6)
 ```
 
+### 4.4 CI/CD 自動化執行（GitHub Actions）
+
+所有測試套件都已接上 GitHub Actions，於每次 `push` 與 `pull_request` 自動觸發。
+設定檔：[`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+| Job | 觸發時機 | 環境 | 內容 |
+|---|---|---|---|
+| `backend-tests` | 每次 push / PR | Ubuntu + JDK 21 + **H2 in-memory** | `mvn test`（138 案） |
+| `backend-mysql-tests` | **PR → `develop` 或 `main`** | Ubuntu + JDK 21 + **MySQL 8.0 service container** | `mvn test` 對打真實 MySQL，防止 H2 / MySQL 方言漂移 |
+| `frontend-tests` | 每次 push / PR | Ubuntu + Node 20 | `npm run test`（71 案） |
+| `fe-be-integration` | 每次 push / PR | Ubuntu + JDK 21 + Node 20 | 啟動 backend (`mvn spring-boot:run`) → polling `/api-docs` → `npm run test:integration`（6 案） |
+
+**設計重點**：
+- **H2 跑每次 PR**：~20 秒，快速反饋。
+- **MySQL 跑合併前**：~5 分鐘（含 service container 啟動），只在進 `develop` / `main`
+  前執行；用真實 MySQL 8.0 容器排除 H2 模擬差異（lock 行為、`ON UPDATE CURRENT_TIMESTAMP` 等）。
+- **跨層整合**：`fe-be-integration` 啟動真正的 Spring Boot 程序，前端用真實 axios
+  打 HTTP，驗證跨語言 (Java ↔ JS) 的序列化契約不會默默斷裂。
+- **健康檢查**：MySQL service 使用 `mysqladmin ping` healthcheck；backend 啟動
+  用 `curl /api-docs` 輪詢確認就緒，最多 300 秒。
+
 ---
 
 ## 五、測試中發現並修復的重要 Bug
@@ -235,11 +256,13 @@ if (order.getStatus() != OrderStatus.PENDING) {
 | 項目 | 動機 | 工具 |
 |---|---|---|
 | **Playwright E2E** | 補上 UI 完整走查（建立 → 列表 → 編輯 → 取消） | Playwright + GitHub Actions |
-| **MySQL CI Profile** | 防止 H2 / MySQL 語法漂移 | Docker mysql:8 + Maven profile |
 | **OpenAPI 契約測試** | 防止前後端 API 默默斷裂 | springdoc + openapi-diff |
 | **Property-based Test** | 隨機餵入訂單流，驗「任何一日 ≤ 10,000」 | jqwik |
 | **Mutation Testing** | 驗證排程測試的「殺傷力」 | PIT Maven plugin |
 | **`delayReason` 欄位** | 規格漂移：需決定實作或刪規 | — |
+
+> 註：原本列為 backlog 的 **MySQL CI Profile** 已實作完成，
+> 詳見 §4.4 中 `backend-mysql-tests` job。
 
 ---
 
@@ -249,8 +272,12 @@ if (order.getStatus() != OrderStatus.PENDING) {
    1 條 (`delayReason`) 以失敗-提示測試標記為規格漂移。
 2. **質量訊號**：215 個自動化測試案例、全數通過、修復 1 個正式環境 race condition。
 3. **執行成本**：完整 backend 套件 < 20 秒、frontend 單元 < 3 秒，
-   非常適合 pre-commit hook 與 CI gate。
-4. **可維護性**：每個測試明確對應一條規則或一個邊界，新加入的成員
+   適合 pre-commit hook 與 CI gate。
+4. **CI 把關**：4 個 GitHub Actions job 自動跑單元、整合、跨層測試；
+   合併到 `develop` / `main` 前另跑 MySQL 8.0 真實 DB 測試，
+   PR 沒過測試不能進。
+5. **可維護性**：每個測試明確對應一條規則或一個邊界，新加入的成員
    可從測試名快速理解系統不變量。
 
-> 本份報告所引用之測試結果均可透過 `mvn test` 與 `npm test` 即時重現。
+> 本份報告所引用之測試結果均可透過 `mvn test` 與 `npm test` 在本機重現，
+> 也可在 GitHub Actions 的 PR 頁面查看每次 commit 的執行紀錄。
