@@ -194,7 +194,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         working-directory: backend
-        run: mvn -B verify sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN
+        run: mvn -B verify sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.organization=yayoruneko
 
       - name: Frontend — coverage
         if: ${{ env.SONAR_TOKEN != '' }}
