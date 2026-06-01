@@ -197,9 +197,6 @@ public class OrderService {
         }
 
         String changedById = getCurrentUser().map(User::getId).orElse(order.getCreatedBy());
-        if (changedById != null) {
-            orderHistoryRepository.save(OrderHistory.snapshot(order, ChangeType.MODIFIED, changedById));
-        }
 
         List<ProductionSlot> existingSlots = productionSlotRepository.findByOrderId(id);
         for (ProductionSlot slot : existingSlots) {
@@ -218,6 +215,10 @@ public class OrderService {
         order.setScheduleWarning(null);
 
         Order updatedOrder = orderRepository.save(order);
+
+        if (changedById != null) {
+            orderHistoryRepository.save(OrderHistory.snapshot(updatedOrder, ChangeType.MODIFIED, changedById));
+        }
 
         schedulingQueueService.enqueueRescheduleAll();
 
@@ -253,9 +254,6 @@ public class OrderService {
         }
 
         String changedById = getCurrentUser().map(User::getId).orElse(order.getCreatedBy());
-        if (changedById != null) {
-            orderHistoryRepository.save(OrderHistory.snapshot(order, ChangeType.CANCELLED, changedById));
-        }
 
         releaseSlots(order);
         order.setCancelledFromStatus(order.getStatus());
@@ -266,7 +264,11 @@ public class OrderService {
         order.setIsDelayed(false);
         order.setDelayDays(0);
         order.setScheduleWarning(null);
-        orderRepository.save(order);
+        Order cancelledOrder = orderRepository.save(order);
+
+        if (changedById != null) {
+            orderHistoryRepository.save(OrderHistory.snapshot(cancelledOrder, ChangeType.CANCELLED, changedById));
+        }
 
         schedulingQueueService.enqueueRescheduleAll();
     }
