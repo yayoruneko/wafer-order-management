@@ -12,6 +12,10 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      nodeSelector:
+        kubernetes.io/hostname: wafer-order-fullstack
       containers:
         - name: frontend
           image: frontend

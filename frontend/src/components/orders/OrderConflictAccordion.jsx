@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { AlertTriangle, ArrowRight, Mail } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { formatDate, styles } from '../../styles/orderListStyles'
 
 const FALLBACK_WARNING =
@@ -20,7 +20,7 @@ function relativeFromNow(iso) {
   return `${days} day${days === 1 ? '' : 's'} ago`
 }
 
-function OrderConflictAccordionBase({ order, onReviewDelay, onNotifyCustomer }) {
+function OrderConflictAccordionBase({ order }) {
   const conflict = order.conflict
   const warning = order.scheduleWarning || FALLBACK_WARNING
 
@@ -76,27 +76,11 @@ function OrderConflictAccordionBase({ order, onReviewDelay, onNotifyCustomer }) 
           </div>
         ) : null}
 
-        <div className={styles.conflictFooter}>
-          <span className={styles.conflictFootnote}>{detectedText}</span>
-          <div className={styles.conflictActions}>
-            <button
-              type="button"
-              className={styles.conflictBtnGhost}
-              onClick={() => onNotifyCustomer?.(order)}
-            >
-              <Mail className={styles.conflictBtnIcon} />
-              Notify customer
-            </button>
-            <button
-              type="button"
-              className={styles.conflictBtnDanger}
-              onClick={() => onReviewDelay?.(order)}
-            >
-              Review delay
-              <ArrowRight className={styles.conflictBtnIcon} />
-            </button>
+        {detectedText ? (
+          <div className={styles.conflictFooter}>
+            <span className={styles.conflictFootnote}>{detectedText}</span>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   )

@@ -18,7 +18,16 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -29,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,6 +58,12 @@ class OrderControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private com.semiconductor.woms.backend.repository.OrderRepository orderRepository;
+    
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @BeforeEach
     void setupAdminUser() {
@@ -61,12 +77,17 @@ class OrderControllerIntegrationTest {
             userRepository.save(admin);
         }
     }
+    
+    @AfterEach
+    void tearDown() {
 
+    }
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
+        String randomCode = "CUST-" + UUID.randomUUID().toString().substring(0, 8);
         Customer customer = new Customer();
-        customer.setCustomerCode("CUST-INT");
-        customer.setName("Integration Customer");
+        customer.setCustomerCode(randomCode);
+        customer.setName("Integration Customer"+ randomCode);
         customer.setIsActive(true);
         Customer savedCustomer = customerRepository.save(customer);
 
@@ -241,6 +262,119 @@ class OrderControllerIntegrationTest {
                         .content(buildOrderJson(saved.getId(), 2500, LocalDate.now().plusDays(7))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.quantity").value(2500));
+    }
+
+    // ── 新增的整合測試 ────────────────────────────────────────────────────────
+    // 對應 SCHEDULING_RULES.md 中 HTTP 邊緣案例：
+    //  - PUT /api/orders/{id} 完整流程（service 層已測，但 controller wiring 沒測過）
+    //  - 樂觀鎖：帶舊 updatedAt → 必須回 409（規則四之 2）
+    //  - 交期等於今日 → 必須回 400 + 「交期」訊息
+    //  - 不存在的訂單 → 404
+    //  - view=delayed / view=in_production 過濾參數會傳到 service
+
+    @Test
+    void updateOrder_validRequest_returns200() throws Exception {
+        Customer customer = new Customer();
+        customer.setCustomerCode("UPDATE-OK-" + UUID.randomUUID());
+        customer.setName("Update Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        MvcResult createRes = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson(saved.getId(), 100, LocalDate.now().plusDays(7))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = ((ObjectNode) objectMapper.readTree(createRes.getResponse().getContentAsString()))
+                .get("id").asText();
+
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("quantity", 250);
+        body.put("customerDueDate", LocalDate.now().plusDays(14).toString());
+
+        mockMvc.perform(put("/api/orders/{id}", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(containsString(orderId)));
+    }
+
+    @Test
+    void updateOrder_staleUpdatedAt_returns409() throws Exception {
+        // 規則四之 2：兩使用者同時開同一筆訂單，後者帶舊 updatedAt → 必須拒絕
+        Customer customer = new Customer();
+        customer.setCustomerCode("OPT-LOCK-" + UUID.randomUUID());
+        customer.setName("Lock Customer");
+        customer.setIsActive(true);
+        Customer saved = customerRepository.save(customer);
+
+        MvcResult createRes = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson(saved.getId(), 100, LocalDate.now().plusDays(7))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String orderId = ((ObjectNode) objectMapper.readTree(createRes.getResponse().getContentAsString()))
+                .get("id").asText();
+
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("quantity", 200);
+        body.put("customerDueDate", LocalDate.now().plusDays(10).toString());
+        // 故意送一個與真實值絕對不同的舊時間戳
+        body.put("updatedAt", "2020-01-01T00:00:00");
+
+        mockMvc.perform(put("/api/orders/{id}", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void createOrder_dueDateToday_returns400() throws Exception {
+        // 邊界：交期必須「晚於」今日，今天本身不通過
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(buildOrderJson("CUST-DUMMY", 100, LocalDate.now())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("交期")));
+    }
+
+    @Test
+    void getOrderById_unknownId_returns500WithMessage() throws Exception {
+        // OrderService 對未知 id 拋 RuntimeException → GlobalExceptionHandler 回 500
+        // 這個測試「鎖住」目前的對外契約；若改為更語義化的 404 ResponseStatusException
+        // 也是合理重構，屆時更新此測試以反映新行為。
+        mockMvc.perform(get("/api/orders/{id}", "NON-EXIST-" + UUID.randomUUID()))
+                .andExpect(status().is5xxServerError())
+                .andExpect(jsonPath("$.message").value(containsString("找不到訂單")));
+    }
+
+    @Test
+    void getOrderSlots_unknownOrder_returns5xx() throws Exception {
+        mockMvc.perform(get("/api/orders/{id}/slots", "MISSING-" + UUID.randomUUID()))
+                .andExpect(status().is5xxServerError());
+    }
+
+    @Test
+    void getOrderHistory_unknownOrder_returns404() throws Exception {
+        // getOrderHistory 用 ResponseStatusException(NOT_FOUND)
+        mockMvc.perform(get("/api/orders/{id}/history", "MISSING-" + UUID.randomUUID()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getOrders_viewDelayed_returnsOnlyDelayed() throws Exception {
+        // 此測試只驗證 endpoint 對 view 參數有反應、回傳是合法的 JSON 陣列。
+        // 此處不假設資料庫初始狀態（其他測試可能也有訂單），重點是 200 + Array。
+        mockMvc.perform(get("/api/orders").param("view", "delayed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void getOrders_viewInProduction_returnsArray() throws Exception {
+        mockMvc.perform(get("/api/orders").param("view", "in_production"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     private String buildOrderJson(String customerId, int quantity, LocalDate dueDate) throws Exception {

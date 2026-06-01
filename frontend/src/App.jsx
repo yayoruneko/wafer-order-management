@@ -10,6 +10,7 @@ import StatsChartsPage from './pages/StatsChartsPage'
 import { AuthProvider } from './auth/AuthProvider'
 import ProtectedRoute from './auth/ProtectedRoute'
 import I18nProvider from './i18n/I18nProvider'
+import OAuth2Redirect from './components/OAuth2Redirect'
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -17,6 +18,9 @@ function AnimatedRoutes() {
     <div key={location.pathname} className="route-fade">
       <Routes location={location}>
         <Route path="/login" element={<LoginPage />} />
+        
+        <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
+
         <Route
           path="/"
           element={
@@ -75,27 +79,27 @@ export default function App() {
     <BrowserRouter>
       <I18nProvider>
         <AuthProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#1c1917',
-              color: '#fafaf9',
-              fontSize: '13px',
-              padding: '10px 14px',
-              borderRadius: '10px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-            },
-            success: {
-              iconTheme: { primary: '#10b981', secondary: '#1c1917' },
-            },
-            error: {
-              iconTheme: { primary: '#ef4444', secondary: '#1c1917' },
-            },
-          }}
-        />
-        <AnimatedRoutes />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#1c1917',
+                color: '#fafaf9',
+                fontSize: '13px',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+              },
+              success: {
+                iconTheme: { primary: '#10b981', secondary: '#1c1917' },
+              },
+              error: {
+                iconTheme: { primary: '#ef4444', secondary: '#1c1917' },
+              },
+            }}
+          />
+          <AnimatedRoutes />
         </AuthProvider>
       </I18nProvider>
     </BrowserRouter>

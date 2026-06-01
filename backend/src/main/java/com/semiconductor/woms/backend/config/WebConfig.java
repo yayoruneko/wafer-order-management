@@ -14,8 +14,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "http://localhost:3000",
                         "http://localhost:3001",
                         "http://localhost:5173", // Vite dev server
-                        "http://141.147.153.54:3001", // Oracle Cloud staging
-                        "http://141.147.153.54:3000" // Oracle Cloud production
+                        "http://150.230.4.150:30002", //production
+                        "http://150.230.4.150:30001" //staging
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
