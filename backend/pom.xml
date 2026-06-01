@@ -15,6 +15,19 @@
     <description>backend</description>
     <properties>
         <java.version>21</java.version>
+        <!-- SonarQube defaults: override on the command line with -Dsonar.host.url=... -->
+        <sonar.projectKey>woms-backend</sonar.projectKey>
+        <sonar.projectName>WOMS Backend</sonar.projectName>
+        <sonar.host.url>http://localhost:9000</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${project.build.directory}/site/jacoco/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Don't count generated DTOs / config classes against coverage -->
+        <sonar.coverage.exclusions>
+            **/dto/**,
+            **/config/**,
+            **/BackendApplication.java
+        </sonar.coverage.exclusions>
     </properties>
     <dependencies>
         <dependency>
@@ -100,6 +113,23 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- JaCoCo: produces the coverage report that Sonar reads. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
