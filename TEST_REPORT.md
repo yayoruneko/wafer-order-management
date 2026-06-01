@@ -1,6 +1,6 @@
 # WOMS 晶圓訂單管理系統 — 測試報告
 
-> 撰寫日期：2026-05-31
+> 撰寫日期：2026-06-01
 > 對應規格：[`SCHEDULING_RULES.md`](SCHEDULING_RULES.md)
 > 對應程式：`backend/` (Spring Boot 3 / Java 21) + `frontend/` (React 19 / Vite)
 
@@ -18,11 +18,26 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
 | 層級 | 測試檔案數 | 測試案例數 | 通過率 | 執行指令 |
 |---|---|---|---|---|
 | Backend 全套 (unit + integration) | 10 | **138** | 100% | `mvn test` |
-| Frontend Unit | 8 | **71**  | 100% | `npm test` |
+| Frontend Unit | 16 | **124** | 100% | `npm test` |
 | Frontend Integration | 1 | **6**   | 需後端啟動 | `npm run test:integration` |
-| **總計** | **19** | **215** | **100%** | — |
+| **總計** | **27** | **268** | **100%** | — |
 
-> 執行時間：Backend ~20 秒、Frontend Unit ~3 秒、Frontend Integration ~5 秒（含後端對打）。
+> 執行時間：Backend ~20 秒、Frontend Unit ~4 秒、Frontend Integration ~5 秒（含後端對打）。
+
+### 1.2 程式碼覆蓋率（Code Coverage）
+
+| 範圍 | Lines | Statements | Branches | Functions | 工具 |
+|---|---|---|---|---|---|
+| Backend | 由 JaCoCo 量測，報告 = `backend/target/site/jacoco/jacoco.xml` | — | — | — | JaCoCo 0.8.12 |
+| Frontend | **50.26%** | 48.56% | 38.32% | 45.54% | Vitest (v8 provider) → `coverage/lcov.info` |
+
+> 前端覆蓋率分子分母已剔除無邏輯檔案（pages、i18n dictionaries、styles、leaf wrappers、entry point），
+> 故 50% 對應的是「真正承載商業邏輯的程式碼」。其中：
+>   - `src/auth/` 95.83%
+>   - `src/hooks/` 74.76%（`useProductionCalendar` 98.68%）
+>   - 三個主要 modal / cell 元件 (`ScheduleDelayAlert`, `CancelOrderDialog`, `InlineEditCell`) 100%
+>
+> 兩份覆蓋率報告會於 SonarQube 統一展示；細節見 §4.5。
 
 ---
 
@@ -38,12 +53,12 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
                        │  Integration (35 個)        │  ← 跨層、跨程序契約
                        └─────────────────────────────┘
                 ┌────────────────────────────────────────────┐
-                │  Unit (180 個)                              │  ← 純函式、Mockito、RTL
+                │  Unit (233 個)                              │  ← 純函式、Mockito、RTL
                 └────────────────────────────────────────────┘
 ```
 
-- **Unit (~84%)**：純函式、Mock 依賴；快速、精確、易定位失敗點。
-- **Integration (~16%)**：真實 DB (H2 in-memory)、真實 Spring 容器、真實 HTTP 請求 (MockMvc)；
+- **Unit (~87%)**：純函式、Mock 依賴；快速、精確、易定位失敗點。
+- **Integration (~13%)**：真實 DB (H2 in-memory)、真實 Spring 容器、真實 HTTP 請求 (MockMvc)；
   專門驗證「只有把多個元件接起來才會出現」的問題。
 - **E2E (0%)**：尚未導入；列為未來規劃 (見 §6)。
 
@@ -68,14 +83,31 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
 
 #### 2.2.3 Frontend Unit Tests
 - **框架**：Vitest 4 + jsdom + React Testing Library 16。
-- **Mock 方式**：`vi.mock('../api/orderApi')` 把所有 HTTP 呼叫變成可控；i18n 字典以最小 stub 注入。
-- **代表檔案**：
-  - [`orderApi.test.js`](frontend/src/api/orderApi.test.js) — 12 案，驗證 path/method/錯誤傳播。
-  - [`useCreateOrder.test.js`](frontend/src/hooks/useCreateOrder.test.js) — 8 案，新增訂單表單行為。
-  - [`useEditOrder.test.js`](frontend/src/hooks/useEditOrder.test.js) — 5 案，409 衝突處理（樂觀鎖 UX）。
-  - [`useOrders.test.js`](frontend/src/hooks/useOrders.test.js) — 9 案，列表 + 篩選 + 分頁。
-  - [`ScheduleDelayAlert.test.jsx`](frontend/src/components/createOrder/ScheduleDelayAlert.test.jsx) — 8 案，§1.5 延遲確認 modal。
-  - [`CancelOrderDialog.test.jsx`](frontend/src/components/orders/CancelOrderDialog.test.jsx) — 8 案，§3.2 IN_PRODUCTION 取消警告。
+- **Mock 方式**：`vi.mock('../api/orderApi')` 把所有 HTTP 呼叫變成可控；i18n 字典以最小 stub 注入；
+  style modules 以 Proxy 攔截（class name 不影響行為，但讓 import 不會炸）。
+- **代表檔案（依層分組）**：
+  - **API 層**
+    - [`orderApi.test.js`](frontend/src/api/orderApi.test.js) — 12 案，驗證 path/method/錯誤傳播。
+  - **Auth 層**
+    - [`jwt.test.js`](frontend/src/auth/jwt.test.js) — 9 案，token 解析 / 過期判斷。
+    - [`tokenStorage.test.js`](frontend/src/auth/tokenStorage.test.js) — 9 案，localStorage / sessionStorage 切換。
+    - [`AuthProvider.test.jsx`](frontend/src/auth/AuthProvider.test.jsx) — 6 案，login / logout / 還原使用者。
+    - [`ProtectedRoute.test.jsx`](frontend/src/auth/ProtectedRoute.test.jsx) — 2 案，路由級權限把關。
+  - **Hooks**
+    - [`useCreateOrder.test.js`](frontend/src/hooks/useCreateOrder.test.js) — 8 案，新增訂單表單行為。
+    - [`useEditOrder.test.js`](frontend/src/hooks/useEditOrder.test.js) — 5 案，409 衝突處理（樂觀鎖 UX）。
+    - [`useOrders.test.js`](frontend/src/hooks/useOrders.test.js) — 9 案，列表 + 篩選 + 分頁。
+    - [`useProductionCalendar.test.js`](frontend/src/hooks/useProductionCalendar.test.js) — 8 案，月曆網格 / load band / 月份切換。
+  - **Components — orders**
+    - [`OrderRow.test.jsx`](frontend/src/components/orders/OrderRow.test.jsx) — 10 案，列渲染 + 取消狀態 + 展開行為。
+    - [`OrderFilters.test.jsx`](frontend/src/components/orders/OrderFilters.test.jsx) — 6 案，debounce 搜尋 + reset。
+    - [`InlineEditCell.test.jsx`](frontend/src/components/orders/InlineEditCell.test.jsx) — 7 案，雙擊編輯 + Enter / Escape / blur。
+    - [`CancelOrderDialog.test.jsx`](frontend/src/components/orders/CancelOrderDialog.test.jsx) — 8 案，§3.2 IN_PRODUCTION 取消警告。
+  - **Components — createOrder**
+    - [`ScheduleDelayAlert.test.jsx`](frontend/src/components/createOrder/ScheduleDelayAlert.test.jsx) — 8 案，§1.5 延遲確認 modal。
+  - **Components — calendar**
+    - [`CalendarDayCell.test.jsx`](frontend/src/components/calendar/CalendarDayCell.test.jsx) — 9 案，產能等級 / 點擊互動 / a11y。
+    - [`CalendarStats.test.jsx`](frontend/src/components/calendar/CalendarStats.test.jsx) — 4 案，月總計卡片。
 
 #### 2.2.4 Frontend Integration Tests
 - **框架**：Vitest (node environment) + 真實 axios → 真實 backend。
@@ -150,27 +182,35 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
 ### 4.2 Frontend Unit 測試輸出 (`npm test`)
 
 ```
- RUN  v4.1.5 /Users/matthew/Documents/dev/code/wafer-order-management/frontend
+ RUN  v4.1.7 /Users/matthew/Documents/dev/code/wafer-order-management/frontend
 
- Test Files  8 passed (8)
-      Tests  71 passed (71)
-   Start at  16:54:00
-   Duration  2.92s
+ Test Files  16 passed (16)
+      Tests  124 passed (124)
+   Start at  16:48:43
+   Duration  3.93s
 ```
 
 明細：
 
 | 測試檔案 | 案例數 |
 |---|---|
+| `src/api/orderApi.test.js` | 12 |
 | `src/auth/jwt.test.js` | 9 |
 | `src/auth/tokenStorage.test.js` | 9 |
-| `src/api/orderApi.test.js` | 12 |
+| `src/auth/AuthProvider.test.jsx` | 6 |
+| `src/auth/ProtectedRoute.test.jsx` | 2 |
 | `src/hooks/useCreateOrder.test.js` | 8 |
 | `src/hooks/useEditOrder.test.js` | 5 |
 | `src/hooks/useOrders.test.js` | 9 |
-| `src/components/createOrder/ScheduleDelayAlert.test.jsx` | 8 |
+| `src/hooks/useProductionCalendar.test.js` | 8 |
+| `src/components/orders/OrderRow.test.jsx` | 10 |
+| `src/components/orders/OrderFilters.test.jsx` | 6 |
+| `src/components/orders/InlineEditCell.test.jsx` | 7 |
 | `src/components/orders/CancelOrderDialog.test.jsx` | 8 |
-| **合計** | **71** |
+| `src/components/createOrder/ScheduleDelayAlert.test.jsx` | 8 |
+| `src/components/calendar/CalendarDayCell.test.jsx` | 9 |
+| `src/components/calendar/CalendarStats.test.jsx` | 4 |
+| **合計** | **124** |
 
 ### 4.3 Frontend Integration 測試輸出 (`npm run test:integration`)
 
@@ -195,8 +235,9 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
 |---|---|---|---|
 | `backend-tests` | 每次 push / PR | Ubuntu + JDK 21 + **H2 in-memory** | `mvn test`（138 案） |
 | `backend-mysql-tests` | **PR → `develop` 或 `main`** | Ubuntu + JDK 21 + **MySQL 8.0 service container** | `mvn test` 對打真實 MySQL，防止 H2 / MySQL 方言漂移 |
-| `frontend-tests` | 每次 push / PR | Ubuntu + Node 20 | `npm run test`（71 案） |
+| `frontend-tests` | 每次 push / PR | Ubuntu + Node 20 | `npm run test`（124 案） |
 | `fe-be-integration` | 每次 push / PR | Ubuntu + JDK 21 + Node 20 | 啟動 backend (`mvn spring-boot:run`) → polling `/api-docs` → `npm run test:integration`（6 案） |
+| `sonar` | 每次 push / PR（同 repo） | Ubuntu + JDK 21 + Node 20 | 跑 backend 測試 + JaCoCo → `mvn sonar:sonar`；前端 `npm run test:coverage` → `sonar-scanner`。SONAR_TOKEN secret 未設定時自動跳過。 |
 
 **設計重點**：
 - **H2 跑每次 PR**：~20 秒，快速反饋。
@@ -206,6 +247,35 @@ WOMS 系統的核心是「訂單 → 排程 → 產能 → 跨天分配」的整
   打 HTTP，驗證跨語言 (Java ↔ JS) 的序列化契約不會默默斷裂。
 - **健康檢查**：MySQL service 使用 `mysqladmin ping` healthcheck；backend 啟動
   用 `curl /api-docs` 輪詢確認就緒，最多 300 秒。
+
+### 4.5 程式碼品質：SonarQube + Coverage 整合
+
+| 項目 | 來源 | 在 CI 對應 step |
+|---|---|---|
+| Backend coverage | JaCoCo `target/site/jacoco/jacoco.xml`（pom.xml `prepare-agent` + `report` 階段） | `sonar` job 第 1 步 |
+| Backend Sonar 上傳 | `mvn verify sonar:sonar` | 同上 |
+| Frontend coverage | Vitest v8 provider → `coverage/lcov.info` | `sonar` job 第 2 步 |
+| Frontend Sonar 上傳 | `SonarSource/sonarqube-scan-action@v4`，讀 [`sonar-project.properties`](frontend/sonar-project.properties) | `sonar` job 第 3 步 |
+
+**Sonar 排除設定**：兩邊都把無邏輯檔案（pages、dictionaries、styles、entry point、
+leaf wrappers）剔除於分母外，讓覆蓋率反映「真正的商業邏輯」，不是「擁有多少行 CSS 常數」。
+
+**本機快速驗證**（不需 CI / 帳號）：
+
+```bash
+docker run -d --name sonarqube -p 9000:9000 sonarqube:lts-community
+# 待 SonarQube 啟動後，UI 產生 token
+export SONAR_HOST_URL=http://localhost:9000  SONAR_TOKEN=<token>
+
+cd backend
+mvn verify sonar:sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN
+
+cd ../frontend
+npm run test:coverage
+npm run sonar -- -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN
+```
+
+完整步驟與 K8s 部署規劃詳見 [`k8s/sonarqube/README.md`](k8s/sonarqube/README.md)。
 
 ---
 
@@ -270,14 +340,18 @@ if (order.getStatus() != OrderStatus.PENDING) {
 
 1. **覆蓋面**：`SCHEDULING_RULES.md` 共 20 條規則中 **19 條完全覆蓋**，
    1 條 (`delayReason`) 以失敗-提示測試標記為規格漂移。
-2. **質量訊號**：215 個自動化測試案例、全數通過、修復 1 個正式環境 race condition。
-3. **執行成本**：完整 backend 套件 < 20 秒、frontend 單元 < 3 秒，
+2. **質量訊號**：268 個自動化測試案例、全數通過、修復 1 個正式環境 race condition。
+3. **覆蓋率**：前端「商業邏輯範圍」line coverage **50.26%**，其中 auth 層 95.83%、
+   主要 modal / hook 100% 或近滿；後端透過 JaCoCo 提供完整 XML 報告供 Sonar 讀取。
+4. **執行成本**：完整 backend 套件 < 20 秒、frontend 單元 < 4 秒，
    適合 pre-commit hook 與 CI gate。
-4. **CI 把關**：4 個 GitHub Actions job 自動跑單元、整合、跨層測試；
+5. **CI 把關**：5 個 GitHub Actions job 自動跑單元、整合、跨層測試與 Sonar 掃描；
    合併到 `develop` / `main` 前另跑 MySQL 8.0 真實 DB 測試，
    PR 沒過測試不能進。
-5. **可維護性**：每個測試明確對應一條規則或一個邊界，新加入的成員
+6. **可維護性**：每個測試明確對應一條規則或一個邊界，新加入的成員
    可從測試名快速理解系統不變量。
 
 > 本份報告所引用之測試結果均可透過 `mvn test` 與 `npm test` 在本機重現，
 > 也可在 GitHub Actions 的 PR 頁面查看每次 commit 的執行紀錄。
+> Coverage / 程式碼品質指標於 SonarQube 儀表板呈現
+> （本機快速啟動見 §4.5、CI 上跑見 `sonar` job）。
