@@ -18,7 +18,16 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -49,6 +58,12 @@ class OrderControllerIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private com.semiconductor.woms.backend.repository.OrderRepository orderRepository;
+    
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @BeforeEach
     void setupAdminUser() {
@@ -62,12 +77,17 @@ class OrderControllerIntegrationTest {
             userRepository.save(admin);
         }
     }
+    
+    @AfterEach
+    void tearDown() {
 
+    }
     @Test
     void createThenList_ordersRoundTrip() throws Exception {
+        String randomCode = "CUST-" + UUID.randomUUID().toString().substring(0, 8);
         Customer customer = new Customer();
-        customer.setCustomerCode("CUST-INT");
-        customer.setName("Integration Customer");
+        customer.setCustomerCode(randomCode);
+        customer.setName("Integration Customer"+ randomCode);
         customer.setIsActive(true);
         Customer savedCustomer = customerRepository.save(customer);
 
