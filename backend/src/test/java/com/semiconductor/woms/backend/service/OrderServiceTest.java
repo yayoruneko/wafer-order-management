@@ -553,8 +553,8 @@ class OrderServiceTest {
         assertEquals("o-1", captor.getValue().getOrderId());
         assertEquals(com.semiconductor.woms.backend.model.enums.ChangeType.MODIFIED,
                 captor.getValue().getChangeType());
-        // 快照應為「修改前」的數量
-        assertEquals(100, captor.getValue().getSnapshotQuantity());
+        // 快照應為「修改後」的數量
+        assertEquals(200, captor.getValue().getSnapshotQuantity());
     }
 
     @Test
@@ -571,8 +571,8 @@ class OrderServiceTest {
         verify(orderHistoryRepository).save(captor.capture());
         assertEquals(com.semiconductor.woms.backend.model.enums.ChangeType.CANCELLED,
                 captor.getValue().getChangeType());
-        // 快照保留取消「前」的狀態
-        assertEquals("SCHEDULED", captor.getValue().getSnapshotStatus());
+        // 快照記錄取消「後」的狀態
+        assertEquals("CANCELLED", captor.getValue().getSnapshotStatus());
     }
 
     // ── getOrderSlots / getOrderHistory 邊界 ──────────────────────────────────
