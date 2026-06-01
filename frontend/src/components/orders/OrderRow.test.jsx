@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../i18n/useI18n', () => ({
@@ -85,10 +85,14 @@ describe('OrderRow', () => {
     expect(screen.queryByLabelText(/Cancel WO-/)).toBeNull()
   })
 
-  it('hides the cancel button for already-cancelled orders (still shows edit)', () => {
-    // (Edit button stays so you can inspect history; cancel doesn't make sense)
-    render(<OrderRow order={baseOrder({ status: 'CANCELLED' })} />)
-    expect(screen.getByLabelText(/Edit WO-/)).toBeInTheDocument()
+  it('hides edit and cancel buttons for terminal orders (cancelled / completed)', () => {
+    // CANCELLED / COMPLETED 都不該允許再被修改或取消（後端會擋），UI 也對應隱藏
+    const { rerender } = render(<OrderRow order={baseOrder({ status: 'CANCELLED' })} />)
+    expect(screen.queryByLabelText(/Edit WO-/)).toBeNull()
+    expect(screen.queryByLabelText(/Cancel WO-/)).toBeNull()
+
+    rerender(<OrderRow order={baseOrder({ status: 'COMPLETED' })} />)
+    expect(screen.queryByLabelText(/Edit WO-/)).toBeNull()
     expect(screen.queryByLabelText(/Cancel WO-/)).toBeNull()
   })
 

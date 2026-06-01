@@ -24,19 +24,25 @@ function OrderRowBase({
   expanded = false,
   onToggleExpand,
   canModify = true,
+  hideStrike = false,
 }) {
   const { t } = useI18n()
   const cancelled = order.status === 'CANCELLED'
+  const completed = order.status === 'COMPLETED'
+  // terminal：訂單已到終態，不應再被編輯或取消（後端會擋）
+  const terminal = cancelled || completed
   const delayed = order.delayedDays > 0 && !cancelled
   const expandable = !cancelled && !!onToggleExpand
-  const strike = cancelled ? styles.cellStrike : ''
-  const baseTextStrong = cancelled
+  // 已取消分頁裡整列都是已取消，再加刪除線只是視覺噪音 → 由父層傳 hideStrike 關掉
+  const showStrike = cancelled && !hideStrike
+  const strike = showStrike ? styles.cellStrike : ''
+  const baseTextStrong = showStrike
     ? `${styles.cellTextStrong} ${styles.cellStrike}`
     : styles.cellTextStrong
-  const baseText = cancelled
+  const baseText = showStrike
     ? `${styles.cellText} ${styles.cellStrike}`
     : styles.cellText
-  const expectedClass = cancelled
+  const expectedClass = showStrike
     ? `${styles.cellText} ${styles.cellStrike}`
     : delayed
       ? styles.cellRed
@@ -130,7 +136,7 @@ function OrderRowBase({
           value={order.qty}
           display={formatQty(order.qty)}
           type="number"
-          disabled={cancelled || !canModify}
+          disabled={terminal || !canModify}
           textClassName={baseText}
           onCommit={(v) => {
             const num = Number(String(v).replace(/,/g, ''))
@@ -150,7 +156,7 @@ function OrderRowBase({
           value={order.dueDate ?? ''}
           display={formatDate(order.dueDate, t.locale)}
           type="date"
-          disabled={cancelled || !canModify}
+          disabled={terminal || !canModify}
           textClassName={`${baseText} whitespace-nowrap`}
           onCommit={(v) => onUpdateField?.(order.id, { dueDate: v })}
         />
@@ -186,7 +192,7 @@ function OrderRowBase({
       </Cell>
 
       <Cell className={`${colWidths.actions} gap-1`} data-no-expand>
-        {canModify ? (
+        {canModify && !terminal ? (
           <>
             <button
               className={styles.iconBtn}
@@ -196,16 +202,14 @@ function OrderRowBase({
             >
               <Pencil className={styles.pencilIcon} />
             </button>
-            {!cancelled && (
-              <button
-                className={styles.iconBtnDanger}
-                onClick={() => onCancel?.(order)}
-                aria-label={t.orderList.cancelOrderAria(order.id)}
-                title={t.orderList.cancelOrderAria(order.id)}
-              >
-                <X className={styles.closeIcon} />
-              </button>
-            )}
+            <button
+              className={styles.iconBtnDanger}
+              onClick={() => onCancel?.(order)}
+              aria-label={t.orderList.cancelOrderAria(order.id)}
+              title={t.orderList.cancelOrderAria(order.id)}
+            >
+              <X className={styles.closeIcon} />
+            </button>
           </>
         ) : (
           <span className={styles.cellMuted}>—</span>

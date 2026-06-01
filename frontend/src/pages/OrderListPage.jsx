@@ -86,10 +86,11 @@ export default function OrderListPage() {
         label: t.orderList.tabs.in_production,
         count: viewCounts.in_production,
       },
-      { id: 'mine', label: t.orderList.tabs.mine, count: viewCounts.mine },
     ]
-    // 歷史訂單 / 已取消 分頁對 VIEWER 隱藏（僅 ADMIN/SUPER_ADMIN 可見）
+    // 「我的訂單 / 歷史訂單 / 已取消」對 VIEWER 隱藏：
+    // VIEWER 不會建立訂單，「我的訂單」永遠為 0；歷史與已取消是管理用視圖。
     if (user?.role !== 'VIEWER') {
+      list.push({ id: 'mine', label: t.orderList.tabs.mine, count: viewCounts.mine })
       list.push({
         id: 'history',
         label: t.orderList.tabs.history,
@@ -127,20 +128,6 @@ export default function OrderListPage() {
       return next
     })
   }, [])
-
-  const handleReviewDelay = useCallback(
-    (order) => navigate(`/orders/${order.id}/edit`),
-    [navigate],
-  )
-
-  const handleNotifyCustomer = useCallback(
-    (order) => {
-      toast.success(t.toast.notifiedCustomer(order.customerName, order.id), {
-        id: `notify-${order.id}`,
-      })
-    },
-    [t],
-  )
 
   const cancelOrderImmediate = useCallback(
     (order) => {
@@ -425,17 +412,12 @@ export default function OrderListPage() {
                       canModify={
                         canModify && view !== 'history' && view !== 'cancelled'
                       }
+                      hideStrike={view === 'cancelled'}
                     />
                     {canExpand && isExpanded ? (
                       <div id={`slots-${o.id}`}>
                         <OrderSlotsAccordion order={o} />
-                        {isDelayed ? (
-                          <OrderConflictAccordion
-                            order={o}
-                            onReviewDelay={handleReviewDelay}
-                            onNotifyCustomer={handleNotifyCustomer}
-                          />
-                        ) : null}
+                        {isDelayed ? <OrderConflictAccordion order={o} /> : null}
                         <OrderHistoryAccordion order={o} />
                       </div>
                     ) : null}
