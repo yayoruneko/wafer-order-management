@@ -70,6 +70,7 @@ docker compose down -v     # 停止並清除資料庫（下次啟動重置）
 | `admin` | `password` | ADMIN | 建立 / 修改 / 取消訂單、觸發排程 |
 | `viewer` | `password` | VIEWER | 唯讀：查詢訂單與行事曆 |
 | `superadmin` | `password` | SUPER_ADMIN | 全部權限（含帳號管理） |
+| Google SSO | — | VIEWER | 以 Google 帳號登入，自動取得唯讀權限 |
 
 ---
 
