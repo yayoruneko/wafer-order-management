@@ -8,6 +8,19 @@
 
 ---
 
+## 線上環境
+
+無需安裝，直接開啟瀏覽器即可使用：
+
+| 環境 | 網址 |
+|------|------|
+| Production | https://prod-woms-team9.duckdns.org/ |
+| Staging | https://stage-woms-team9.duckdns.org/ |
+
+登入帳號請見下方「[登入帳號](#登入帳號)」。
+
+---
+
 ## 快速啟動
 
 > 前端本機開發需使用 Node.js 20+
